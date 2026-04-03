@@ -76,6 +76,34 @@
     </div>
 </div>
 
+<!-- ========== 訂單明細 Modal ========== -->
+<div id="orderDetailModal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="od-modal-title">訂單明細</h3>
+            <button class="btn-icon" onclick="OrderList.closeDetail()">❌</button>
+        </div>
+        <div class="modal-body table-wrap">
+            <table class="items-table" id="od-table">
+                <thead>
+                    <tr>
+                        <th>品項名稱</th>
+                        <th>數量</th>
+                        <th>說明</th>
+                        <th>預計出貨日</th>
+                        <th>排程狀態</th>
+                    </tr>
+                </thead>
+                <tbody id="od-tbody"></tbody>
+            </table>
+        </div>
+        <div class="modal-actions mt-12">
+            <button class="btn btn-secondary" onclick="OrderList.closeDetail()">取消</button>
+            <button class="btn btn-primary" onclick="OrderList.saveDetail()">確定儲存</button>
+        </div>
+    </div>
+</div>
+
 <!-- ========== Loading ========== -->
 <div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
     <div class="loading-spinner"></div>
