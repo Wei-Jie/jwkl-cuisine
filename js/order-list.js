@@ -6,6 +6,7 @@ const OrderList = (() => {
     let allOrders = [];    // 訂單主檔
     let allSchedule = [];  // 排單表
     let queryResult = [];  // 查詢結果（訂單級）
+    let currentDetailIdx = null; // 正在查看明細的訂單索引
 
     function init() {
         const page = document.getElementById('page-order-list');
@@ -183,7 +184,10 @@ const OrderList = (() => {
 
             return `<tr>
                 <td><input type="checkbox" class="ol-cb" data-idx="${idx}"></td>
-                <td class="fw-medium">${o['訂單編號']}</td>
+                <td class="fw-medium" style="display:flex;align-items:center;gap:4px">
+                    ${o['訂單編號']}
+                    <button class="btn-icon" onclick="OrderList.showDetail(${idx})" title="查看明細">📝</button>
+                </td>
                 <td>${o['訂單日期']}</td>
                 <td>${o['顧客名稱']}</td>
                 <td>${o['訂單金額'] ? '$' + Number(o['訂單金額']).toLocaleString('zh-TW') : '-'}</td>
@@ -247,5 +251,101 @@ const OrderList = (() => {
         }
     }
 
-    return { init, query, toggleAll, saveChanges };
+    function showDetail(idx) {
+        currentDetailIdx = idx;
+        const order = queryResult[idx];
+        const orderId = order['訂單編號'];
+        
+        document.getElementById('od-modal-title').textContent = `訂單明細 - ${orderId} (${order['顧客名稱']})`;
+        const tbody = document.getElementById('od-tbody');
+        
+        const lines = allSchedule.filter(s => s['訂單編號'] === orderId);
+        
+        if (!lines.length) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-secondary">無明細資料</td></tr>`;
+        } else {
+            tbody.innerHTML = lines.map((line, lineIdx) => {
+                const status = line['排程狀態'];
+                let statusHtml = '';
+                if (status === '待排程') {
+                    statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}">
+                        <option value="待排程" selected>待排程</option>
+                        <option value="已完成">已完成</option>
+                    </select>`;
+                } else if (status === '已完成') {
+                    statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}">
+                        <option value="已完成" selected>已完成</option>
+                        <option value="已出貨">已出貨</option>
+                    </select>`;
+                } else if (status === '已出貨') {
+                    statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}" disabled>
+                        <option value="已出貨" selected>已出貨</option>
+                    </select>`;
+                } else {
+                    statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}">
+                        <option value="待排程" ${status==='待排程'?'selected':''}>待排程</option>
+                        <option value="已完成" ${status==='已完成'?'selected':''}>已完成</option>
+                        <option value="已出貨" ${status==='已出貨'?'selected':''}>已出貨</option>
+                    </select>`;
+                }
+
+                return `<tr>
+                    <td>${line['品項'] || line['品項名稱'] || ''}</td>
+                    <td>${line['訂購數量'] || line['數量'] || ''}</td>
+                    <td><span class="text-secondary text-sm">${line['說明'] || line['備註'] || ''}</span></td>
+                    <td>${line['預計出貨日期 (A)'] || ''}</td>
+                    <td>${statusHtml}</td>
+                </tr>`;
+            }).join('');
+        }
+        
+        document.getElementById('orderDetailModal').classList.add('show');
+    }
+
+    function closeDetail() {
+        currentDetailIdx = null;
+        document.getElementById('orderDetailModal').classList.remove('show');
+    }
+
+    async function saveDetail() {
+        if (currentDetailIdx === null) return;
+        const order = queryResult[currentDetailIdx];
+        const orderId = order['訂單編號'];
+        const lines = allSchedule.filter(s => s['訂單編號'] === orderId);
+        
+        const selects = document.querySelectorAll('.od-status');
+        const updates = [];
+        
+        selects.forEach(sel => {
+            const lineIdx = parseInt(sel.dataset.lineIdx);
+            const line = lines[lineIdx];
+            const newStatus = sel.value;
+            
+            if (line['排程狀態'] !== newStatus) {
+                updates.push({
+                    range: `${CONFIG.SHEETS.SCHEDULE}!J${line._rowIndex}`,
+                    values: [[newStatus]]
+                });
+            }
+        });
+
+        if (!updates.length) {
+            closeDetail();
+            return;
+        }
+
+        showLoading(true);
+        try {
+            await Sheets.batchUpdate(updates);
+            showToast('明細狀態更新成功！', 'success');
+            closeDetail();
+            query(); // 重新整理外層畫面以反映變更
+        } catch (e) {
+            showToast('更新失敗：' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    return { init, query, toggleAll, saveChanges, showDetail, closeDetail, saveDetail };
 })();
