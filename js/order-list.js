@@ -7,8 +7,14 @@ const OrderList = (() => {
     let allSchedule = [];  // 排單表
     let queryResult = [];  // 查詢結果（訂單級）
     let currentDetailIdx = null; // 正在查看明細的訂單索引
+    let menuData = [];
+    let detailLines = [];
+    let deletedRows = [];
 
-    function init() {
+    async function init() {
+        try {
+            menuData = await App.getMenu();
+        } catch (e) { /* silent */ }
         const page = document.getElementById('page-order-list');
         page.innerHTML = `
         <div class="page-header">
@@ -251,59 +257,226 @@ const OrderList = (() => {
         }
     }
 
+    function buildItemOptions(selectedName = '') {
+        const categories = [...new Set(menuData.map(m => m['分類']))];
+        let opts = `<option value="">請選擇</option>`;
+        categories.forEach(cat => {
+            const items = menuData.filter(m => m['分類'] === cat);
+            opts += `<optgroup label="${cat}">`;
+            items.forEach(m => {
+                const sel = m['菜名'] === selectedName ? 'selected' : '';
+                opts += `<option value="${m['菜名']}" ${sel}>${m['菜名']}</option>`;
+            });
+            opts += `</optgroup>`;
+        });
+        return opts;
+    }
+
+    function renderDetailTable() {
+        const tbody = document.getElementById('od-tbody');
+        const visibleLines = detailLines.filter(l => !l._deleted);
+        
+        if (!visibleLines.length) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-secondary">無明細資料</td></tr>`;
+            updateDetailTotal();
+            return;
+        }
+
+        tbody.innerHTML = detailLines.map((line, lineIdx) => {
+            if(line._deleted) return '';
+            
+            const status = line['排程狀態'];
+            const isPending = status === '待排程';
+            const name = line['品項'] || line['品項名稱'] || '';
+            const qty = line['訂購數量'] || line['數量'] || '';
+            const note = line['說明'] || line['備註'] || '';
+            const date = line['預計出貨日期 (A)'] || '';
+            const isWeight = String(line._unitPriceStr || '').includes('*');
+
+            let statusHtml = '';
+            if (isPending) {
+                statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}">
+                    <option value="待排程" selected>待排程</option>
+                    <option value="已完成">已完成</option>
+                </select>`;
+            } else if (status === '已完成') {
+                statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}">
+                    <option value="已完成" selected>已完成</option>
+                    <option value="已出貨">已出貨</option>
+                </select>`;
+            } else if (status === '已出貨') {
+                statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}" disabled>
+                    <option value="已出貨" selected>已出貨</option>
+                </select>`;
+            } else {
+                statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}">
+                    <option value="待排程" ${status==='待排程'?'selected':''}>待排程</option>
+                    <option value="已完成" ${status==='已完成'?'selected':''}>已完成</option>
+                    <option value="已出貨" ${status==='已出貨'?'selected':''}>已出貨</option>
+                </select>`;
+            }
+
+            let trHtml = '';
+            // 如果是待排程，可編輯
+            if (isPending) {
+                trHtml = `<tr>
+                    <td>
+                        <select class="form-control form-control-sm od-name" data-line-idx="${lineIdx}" onchange="OrderList.onItemChange(${lineIdx})">
+                            ${buildItemOptions(name)}
+                        </select>
+                    </td>
+                    <td><input type="number" class="form-control form-control-sm od-qty" data-line-idx="${lineIdx}" value="${qty}" onchange="OrderList.onQtyChange(${lineIdx})" min="1" placeholder="數量/g"></td>
+                    <td><span class="od-price text-secondary" id="od-price-${lineIdx}">${isWeight ? line._unitPriceStr : '$' + (line._unitPrice || 0)}</span></td>
+                    <td><span class="od-subtotal fw-medium" id="od-subtotal-${lineIdx}">$${line['小計價格'] || line['小計'] || 0}</span></td>
+                    <td><input type="text" class="form-control form-control-sm od-note" data-line-idx="${lineIdx}" value="${note}" placeholder="說明"></td>
+                    <td><input type="date" class="form-control form-control-sm od-date" data-line-idx="${lineIdx}" value="${toInputDate(date)}"></td>
+                    <td>${statusHtml}</td>
+                    <td><button class="btn-icon" onclick="OrderList.removeItem(${lineIdx})" title="刪除此列">✕</button></td>
+                </tr>`;
+            } else {
+                trHtml = `<tr>
+                    <td>${name}</td>
+                    <td>${qty}</td>
+                    <td><span class="text-secondary">${isWeight ? line._unitPriceStr : '$' + (line._unitPrice || 0)}</span></td>
+                    <td><span class="od-subtotal fw-medium" id="od-subtotal-${lineIdx}" data-val="${line['小計價格'] || line['小計'] || 0}">$${line['小計價格'] || line['小計'] || 0}</span></td>
+                    <td><span class="text-secondary text-sm">${note}</span></td>
+                    <td>${date}</td>
+                    <td>${statusHtml}</td>
+                    <td></td>
+                </tr>`;
+            }
+            return trHtml;
+        }).join('');
+        
+        updateDetailTotal();
+    }
+
     function showDetail(idx) {
         currentDetailIdx = idx;
         const order = queryResult[idx];
         const orderId = order['訂單編號'];
+        deletedRows = [];
         
         document.getElementById('od-modal-title').textContent = `訂單明細 - ${orderId} (${order['顧客名稱']})`;
-        const tbody = document.getElementById('od-tbody');
         
-        const lines = allSchedule.filter(s => s['訂單編號'] === orderId);
+        const originalLines = allSchedule.filter(s => s['訂單編號'] === orderId);
+        detailLines = originalLines.map(l => {
+            const name = l['品項'] || l['品項名稱'] || '';
+            const menuItem = menuData.find(m => m['菜名'] === name);
+            const isWeight = !!(menuItem && String(menuItem['單價']).includes('*'));
+            const unitPrice = isWeight ? menuItem['單價'] : parseInt(menuItem?.['單價']) || 0;
+            return {
+                ...l,
+                _unitPriceStr: menuItem?.['單價'],
+                _unitPrice: unitPrice,
+                _isWeight: isWeight
+            };
+        });
         
-        if (!lines.length) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-secondary">無明細資料</td></tr>`;
-        } else {
-            tbody.innerHTML = lines.map((line, lineIdx) => {
-                const status = line['排程狀態'];
-                let statusHtml = '';
-                if (status === '待排程') {
-                    statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}">
-                        <option value="待排程" selected>待排程</option>
-                        <option value="已完成">已完成</option>
-                    </select>`;
-                } else if (status === '已完成') {
-                    statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}">
-                        <option value="已完成" selected>已完成</option>
-                        <option value="已出貨">已出貨</option>
-                    </select>`;
-                } else if (status === '已出貨') {
-                    statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}" disabled>
-                        <option value="已出貨" selected>已出貨</option>
-                    </select>`;
-                } else {
-                    statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}">
-                        <option value="待排程" ${status==='待排程'?'selected':''}>待排程</option>
-                        <option value="已完成" ${status==='已完成'?'selected':''}>已完成</option>
-                        <option value="已出貨" ${status==='已出貨'?'selected':''}>已出貨</option>
-                    </select>`;
-                }
+        renderDetailTable();
+        document.getElementById('orderDetailModal').classList.add('show');
+    }
 
-                return `<tr>
-                    <td>${line['品項'] || line['品項名稱'] || ''}</td>
-                    <td>${line['訂購數量'] || line['數量'] || ''}</td>
-                    <td><span class="text-secondary text-sm">${line['說明'] || line['備註'] || ''}</span></td>
-                    <td>${line['預計出貨日期 (A)'] || ''}</td>
-                    <td>${statusHtml}</td>
-                </tr>`;
-            }).join('');
+    function addItem() {
+        if (currentDetailIdx === null) return;
+        const order = queryResult[currentDetailIdx];
+        
+        detailLines.push({
+            '訂單編號': order['訂單編號'],
+            '排單日期': order['訂單日期'],
+            '顧客名稱': order['顧客名稱'],
+            '品項名稱': '',
+            '數量': '',
+            '預計出貨日期 (A)': '',
+            '說明': '',
+            '排程狀態': '待排程',
+            '小計': 0,
+            _unitPrice: 0,
+            _isNew: true
+        });
+        renderDetailTable();
+    }
+
+    function removeItem(lineIdx) {
+        const line = detailLines[lineIdx];
+        line._deleted = true;
+        if (line._rowIndex) {
+            deletedRows.push(line._rowIndex);
+        }
+        renderDetailTable();
+    }
+
+    function onItemChange(lineIdx) {
+        const line = detailLines[lineIdx];
+        const nameEl = document.querySelector(`.od-name[data-line-idx="${lineIdx}"]`);
+        const name = nameEl.value;
+        const menuItem = menuData.find(m => m['菜名'] === name);
+        
+        if (!menuItem) {
+            line._unitPrice = 0;
+            line._isWeight = false;
+            line['小計'] = 0;
+        } else {
+            const isWeight = String(menuItem['單價']).includes('*');
+            line._isWeight = isWeight;
+            line._unitPriceStr = menuItem['單價'];
+            line._unitPrice = isWeight ? menuItem['單價'] : parseInt(menuItem['單價']) || 0;
         }
         
-        document.getElementById('orderDetailModal').classList.add('show');
+        updateDetailSubtotal(lineIdx);
+    }
+
+    function onQtyChange(lineIdx) {
+        updateDetailSubtotal(lineIdx);
+    }
+
+    function updateDetailSubtotal(lineIdx) {
+        const line = detailLines[lineIdx];
+        const qtyEl = document.querySelector(`.od-qty[data-line-idx="${lineIdx}"]`);
+        const priceEl = document.getElementById(`od-price-${lineIdx}`);
+        const subtotalEl = document.getElementById(`od-subtotal-${lineIdx}`);
+        
+        const qty = parseFloat(qtyEl?.value) || 0;
+        
+        if (line._isWeight) {
+            priceEl.textContent = line._unitPriceStr;
+            const trueUnitPrice = parseFloat(line._unitPriceStr) || 0;
+            const sub = Math.round(trueUnitPrice * qty);
+            line['小計'] = sub;
+            subtotalEl.textContent = sub ? `$${sub.toLocaleString('zh-TW')}` : '-';
+        } else {
+            priceEl.textContent = `$${line._unitPrice || 0}`;
+            const sub = (line._unitPrice || 0) * parseInt(qty);
+            line['小計'] = sub;
+            subtotalEl.textContent = sub ? `$${sub.toLocaleString('zh-TW')}` : '-';
+        }
+        updateDetailTotal();
+    }
+
+    function updateDetailTotal() {
+        let total = 0;
+        detailLines.forEach((l, idx) => {
+            if(l._deleted) return;
+            const isPending = l['排程狀態'] === '待排程';
+            let sub = parseInt(l['小計']) || parseInt(l['小計價格']) || 0;
+            const subEl = document.getElementById(`od-subtotal-${idx}`);
+            if (subEl) {
+                const valStr = subEl.dataset.val || subEl.textContent;
+                const cleanVal = valStr.replace(/[$,\s]/g, '');
+                if (!isNaN(parseInt(cleanVal))) sub = parseInt(cleanVal);
+            }
+            total += sub;
+        });
+        
+        const totalEl = document.getElementById('od-total');
+        if (totalEl) totalEl.textContent = `$${total.toLocaleString('zh-TW')}`;
+        return total;
     }
 
     function closeDetail() {
         currentDetailIdx = null;
+        detailLines = [];
+        deletedRows = [];
         document.getElementById('orderDetailModal').classList.remove('show');
     }
 
@@ -311,35 +484,70 @@ const OrderList = (() => {
         if (currentDetailIdx === null) return;
         const order = queryResult[currentDetailIdx];
         const orderId = order['訂單編號'];
-        const lines = allSchedule.filter(s => s['訂單編號'] === orderId);
         
-        const selects = document.querySelectorAll('.od-status');
         const updates = [];
+        const inserts = [];
         
-        selects.forEach(sel => {
-            const lineIdx = parseInt(sel.dataset.lineIdx);
-            const line = lines[lineIdx];
-            const newStatus = sel.value;
+        // 讀取畫面資料同步回細項
+        document.querySelectorAll('.od-status').forEach(sel => {
+            const idx = sel.dataset.lineIdx;
+            const line = detailLines[idx];
+            if(line._deleted) return;
             
-            if (line['排程狀態'] !== newStatus) {
-                updates.push({
-                    range: `${CONFIG.SHEETS.SCHEDULE}!J${line._rowIndex}`,
-                    values: [[newStatus]]
-                });
+            line['排程狀態'] = sel.value;
+            const nameEl = document.querySelector(`.od-name[data-line-idx="${idx}"]`);
+            if (nameEl) {
+                line['品項名稱'] = nameEl.value;
+                line['數量'] = document.querySelector(`.od-qty[data-line-idx="${idx}"]`)?.value || '';
+                line['說明'] = document.querySelector(`.od-note[data-line-idx="${idx}"]`)?.value || '';
+                line['預計出貨日期 (A)'] = fromInputDate(document.querySelector(`.od-date[data-line-idx="${idx}"]`)?.value || '');
             }
         });
 
-        if (!updates.length) {
-            closeDetail();
-            return;
-        }
+        const newTotal = updateDetailTotal();
+
+        detailLines.forEach(line => {
+             if (line._deleted) return; 
+             
+             if (line._isNew) {
+                 inserts.push([
+                     orderId, 
+                     line['排單日期'] || order['訂單日期'], 
+                     line['顧客名稱'] || order['顧客名稱'], 
+                     line['品項名稱'],
+                     line['預計出貨日期 (A)'], 
+                     line['數量'], 
+                     line._unitPriceStr || line._unitPrice || '', 
+                     line['小計'] || '',
+                     line['說明'] || '', 
+                     line['排程狀態'], 
+                     ''
+                 ]);
+             } else {
+                 const r = line._rowIndex;
+                 updates.push({ range: `${CONFIG.SHEETS.SCHEDULE}!D${r}:F${r}`, values: [[line['品項名稱'] || line['品項'], line['預計出貨日期 (A)'], line['數量'] || line['訂購數量']]] });
+                 updates.push({ range: `${CONFIG.SHEETS.SCHEDULE}!H${r}:J${r}`, values: [[line['小計'] || line['小計價格'], line['說明'] || line['備註'], line['排程狀態']]] });
+             }
+        });
 
         showLoading(true);
         try {
-            await Sheets.batchUpdate(updates);
-            showToast('明細狀態更新成功！', 'success');
+            updates.push({
+                range: `${CONFIG.SHEETS.ORDER_MAIN}!C${order._rowIndex}`,
+                values: [[newTotal]]
+            });
+
+            if (updates.length) await Sheets.batchUpdate(updates);
+            if (inserts.length) await Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, inserts);
+            if (deletedRows.length) {
+                const sheetIds = await Sheets.getSheetIds();
+                const sid = sheetIds[CONFIG.SHEETS.SCHEDULE];
+                await Sheets.deleteRows(sid, deletedRows.map(r => r - 1));
+            }
+
+            showToast('明細更新成功！總金額已同步', 'success');
             closeDetail();
-            query(); // 重新整理外層畫面以反映變更
+            query(); 
         } catch (e) {
             showToast('更新失敗：' + e.message, 'error');
         } finally {
@@ -347,5 +555,5 @@ const OrderList = (() => {
         }
     }
 
-    return { init, query, toggleAll, saveChanges, showDetail, closeDetail, saveDetail };
+    return { init, query, toggleAll, saveChanges, showDetail, closeDetail, saveDetail, addItem, removeItem, onItemChange, onQtyChange };
 })();
