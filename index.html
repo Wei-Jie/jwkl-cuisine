@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小灶私廚 — 訂單管理系統</title>
+    <meta name="description" content="小灶私廚內部訂單管理系統，管理訂單、排單與菜單。">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ========== 導覽列 ========== -->
+<nav class="nav">
+    <div class="nav-brand">小灶私廚</div>
+    <div class="nav-links">
+        <button class="nav-btn" data-page="order-new" id="nav-order-new">新增訂單</button>
+        <button class="nav-btn" data-page="order-list" id="nav-order-list">排單管理</button>
+        <button class="nav-btn" data-page="menu-mgmt" id="nav-menu-mgmt">菜單管理</button>
+        <button class="nav-btn" data-page="revenue" id="nav-revenue">營收統計</button>
+    </div>
+    <div class="nav-user">
+        <div id="userInfo" class="user-info hidden">
+            <span id="userName"></span>
+            <button class="btn-text" onclick="Auth.signOut()">登出</button>
+        </div>
+        <button id="signInBtn" class="btn btn-primary" onclick="Auth.signIn()">
+            🔑 登入 Google
+        </button>
+    </div>
+</nav>
+
+<!-- ========== 主內容 ========== -->
+<main class="main-content">
+
+    <!-- 未登入提示 -->
+    <div id="loginPrompt" class="login-prompt">
+        <div class="login-card">
+            <h2>🥘 小灶私廚</h2>
+            <p>訂單管理系統<br>請先登入 Google 帳號以存取訂單資料。</p>
+            <button class="btn btn-primary" style="width:100%" onclick="Auth.signIn()">
+                🔑 使用 Google 登入
+            </button>
+            <p style="margin-top:16px;font-size:12px;color:#9aa0a6">
+                ⚠️ 請確認已從 <code>http://localhost:8080</code> 開啟本頁面
+            </p>
+        </div>
+    </div>
+
+    <!-- 新增訂單 -->
+    <div id="page-order-new" class="page hidden"></div>
+
+    <!-- 排單管理 -->
+    <div id="page-order-list" class="page hidden"></div>
+
+    <!-- 菜單管理 -->
+    <div id="page-menu-mgmt" class="page hidden"></div>
+
+    <!-- 營收統計 -->
+    <div id="page-revenue" class="page hidden"></div>
+
+</main>
+
+<!-- ========== Toast 通知 ========== -->
+<div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+<!-- ========== 確認 Modal ========== -->
+<div id="confirmModal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+        <p id="confirmMessage"></p>
+        <div class="modal-actions">
+            <button id="confirmCancel" class="btn btn-secondary">取消</button>
+            <button id="confirmOk" class="btn btn-primary">確定</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== Loading ========== -->
+<div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
+    <div class="loading-spinner"></div>
+</div>
+
+<!-- ========== Scripts ========== -->
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/sheets.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/order-new.js"></script>
+<script src="js/order-list.js"></script>
+<script src="js/menu-mgmt.js"></script>
+<script src="js/revenue.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
