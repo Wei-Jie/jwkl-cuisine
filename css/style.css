@@ -293,6 +293,10 @@ body {
     font-size: 13px;
 }
 
+.items-table { min-width: 800px; }
+.items-table select.form-control, .items-table input.form-control { min-width: 85px; }
+.items-table select.od-name, .items-table select[id^="on-item-name"] { min-width: 150px; }
+
 .data-table th, .items-table th {
     padding: 10px 12px;
     text-align: left;
@@ -355,7 +359,7 @@ input[type="checkbox"] {
 /* ==============================
    訂單頁專用
 ============================== */
-.items-table-wrap { margin-bottom: 12px; }
+.items-table-wrap { margin-bottom: 12px; overflow-x: auto; width: 100%; }
 
 .total-row {
     display: flex;
@@ -526,7 +530,7 @@ input[type="checkbox"] {
 /* ==============================
    狀態選擇下拉顏色
 ============================== */
-.status-select { font-size: 12px; font-weight: 500; }
+.status-select, .od-status { font-size: 12px; font-weight: 500; min-width: 85px; }
 
 /* ==============================
    響應式
@@ -561,7 +565,7 @@ input[type="checkbox"] {
     .filter-row .btn { width: 100%; justify-content: center; }
     
     /* 讓表格在手機上滿版並可滑動 */
-    .table-wrap {
+    .table-wrap, .items-table-wrap {
         margin: 0 -16px;
         width: calc(100% + 32px);
         padding: 0 16px;
