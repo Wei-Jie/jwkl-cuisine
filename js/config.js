@@ -9,7 +9,8 @@ const CONFIG = {
         ORDER_MAIN: '訂單主檔',
         ORDER_STATUS: '訂單狀態',
         SCHEDULE: '排單表',
-        MENU: '菜單'
+        MENU: '菜單',
+        EXPENSES: '支出紀錄'
     },
     // 排程狀態常數
     STATUS: {

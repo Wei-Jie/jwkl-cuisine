@@ -48,21 +48,21 @@ const Revenue = (() => {
         </div>
         <div id="rv-result" class="hidden">
             <div class="stats-cards" id="rv-cards"></div>
-            <div class="two-col-grid">
-                <div class="card">
-                    <h2 class="card-title">各品項銷售</h2>
-                    <div class="table-wrap"><table class="data-table" id="rv-items-table">
-                        <thead><tr><th>品項</th><th>分類</th><th class="text-right">銷售數量</th><th class="text-right">銷售金額</th></tr></thead>
-                        <tbody id="rv-items-body"></tbody>
-                    </table></div>
-                </div>
-                <div class="card">
-                    <h2 class="card-title">各顧客消費</h2>
-                    <div class="table-wrap"><table class="data-table" id="rv-cust-table">
-                        <thead><tr><th>顧客名稱</th><th class="text-right">訂單筆數</th><th class="text-right">消費金額</th></tr></thead>
-                        <tbody id="rv-cust-body"></tbody>
-                    </table></div>
-                </div>
+            
+            <div class="card card-full">
+                <h2 class="card-title">各品項銷售與毛利分析</h2>
+                <div class="table-wrap"><table class="data-table" id="rv-items-table">
+                    <thead><tr><th>品項</th><th>分類</th><th class="text-right">銷售數量</th><th class="text-right">銷售金額</th><th class="text-right">預估成本</th><th class="text-right">預估毛利</th></tr></thead>
+                    <tbody id="rv-items-body"></tbody>
+                </table></div>
+            </div>
+            
+            <div class="card card-full mt-16">
+                <h2 class="card-title">各顧客消費</h2>
+                <div class="table-wrap"><table class="data-table" id="rv-cust-table">
+                    <thead><tr><th>顧客名稱</th><th class="text-right">訂單筆數</th><th class="text-right">消費金額</th></tr></thead>
+                    <tbody id="rv-cust-body"></tbody>
+                </table></div>
             </div>
         </div>`;
 

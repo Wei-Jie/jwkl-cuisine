@@ -6,7 +6,7 @@ const MenuMgmt = (() => {
     let allMenu = [];
     let queryResult = [];
     let sheetId = null;
-    const HEADERS = ['分類', '菜名', '單價', '最小訂購數量', '備註'];
+    const HEADERS = ['分類', '菜名', '單價', '最小訂購數量', '備註', '預估成本'];
     const CATEGORIES = ['麵食', '小菜', '料理包', '滷味'];
 
     function init() {
@@ -52,6 +52,7 @@ const MenuMgmt = (() => {
                             <th style="width:20%">菜名</th>
                             <th style="width:12%">單價</th>
                             <th style="width:12%">最小訂購數量</th>
+                            <th style="width:12%">預估成本</th>
                             <th>備註</th>
                         </tr>
                     </thead>
@@ -100,6 +101,7 @@ const MenuMgmt = (() => {
                 <td><input type="text" class="form-control form-control-sm" data-field="菜名" value="${m['菜名'] || ''}"></td>
                 <td><input type="text" class="form-control form-control-sm" data-field="單價" value="${m['單價'] || ''}"></td>
                 <td><input type="number" class="form-control form-control-sm" data-field="最小訂購數量" value="${m['最小訂購數量'] || 1}" min="1"></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="預估成本" value="${m['預估成本'] || ''}" placeholder="如: 30%或45"></td>
                 <td><input type="text" class="form-control form-control-sm" data-field="備註" value="${m['備註'] || ''}"></td>
             </tr>`).join('');
     }
@@ -110,7 +112,7 @@ const MenuMgmt = (() => {
         const tbody = document.getElementById('mm-tbody');
         const idx = queryResult.length;
 
-        const newItem = { _rowIndex: null, _isNew: true, '分類': CATEGORIES[0], '菜名': '', '單價': '', '最小訂購數量': 1, '備註': '' };
+        const newItem = { _rowIndex: null, _isNew: true, '分類': CATEGORIES[0], '菜名': '', '單價': '', '最小訂購數量': 1, '預估成本': '', '備註': '' };
         queryResult.push(newItem);
 
         const tr = document.createElement('tr');
@@ -124,6 +126,7 @@ const MenuMgmt = (() => {
             <td><input type="text" class="form-control form-control-sm" data-field="菜名" placeholder="輸入菜名"></td>
             <td><input type="text" class="form-control form-control-sm" data-field="單價" placeholder="如: 240 或 1.4*重量"></td>
             <td><input type="number" class="form-control form-control-sm" data-field="最小訂購數量" value="1" min="1"></td>
+            <td><input type="text" class="form-control form-control-sm" data-field="預估成本" placeholder="如: 30%"></td>
             <td><input type="text" class="form-control form-control-sm" data-field="備註"></td>`;
         tbody.appendChild(tr);
         document.getElementById('mm-count').textContent = `共 ${queryResult.length} 筆`;
@@ -186,14 +189,14 @@ const MenuMgmt = (() => {
                 return el ? el.value.trim() : '';
             };
 
-            const row = [getValue('分類'), getValue('菜名'), getValue('單價'), getValue('最小訂購數量'), getValue('備註')];
+            const row = [getValue('分類'), getValue('菜名'), getValue('單價'), getValue('最小訂購數量'), getValue('備註'), getValue('預估成本')];
             const item = queryResult[idx];
 
             if (item._isNew) {
                 toAppend.push(row);
             } else {
-                // 更新整列（A~E欄）
-                toUpdate.push({ range: `${CONFIG.SHEETS.MENU}!A${item._rowIndex}:E${item._rowIndex}`, values: [row] });
+                // 更新整列（A~F欄）
+                toUpdate.push({ range: `${CONFIG.SHEETS.MENU}!A${item._rowIndex}:F${item._rowIndex}`, values: [row] });
             }
         });
 

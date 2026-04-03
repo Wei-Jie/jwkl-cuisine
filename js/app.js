@@ -11,6 +11,7 @@ const App = (() => {
         'order-new': OrderNew,
         'order-list': OrderList,
         'menu-mgmt': MenuMgmt,
+        'expense': ExpenseMgmt,
         'revenue': Revenue
     };
 
