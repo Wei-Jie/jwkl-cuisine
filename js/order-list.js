@@ -285,11 +285,17 @@ const OrderList = (() => {
         tbody.innerHTML = detailLines.map((line, lineIdx) => {
             if(line._deleted) return '';
             
-            const status = line['排程狀態'];
+            const status = line['排程狀態'] || '';
             const isPending = status === '待排程';
-            const name = line['品項'] || line['品項名稱'] || '';
-            const qty = line['訂購數量'] || line['數量'] || '';
-            const note = line['說明'] || line['備註'] || '';
+            
+            // 尋找品項名稱與數量，考量各種標題可能性
+            let name = '', qtyStr = '', note = '';
+            Object.keys(line).forEach(k => {
+                if (!name && (k.includes('品項'))) name = line[k];
+                if (!qtyStr && (k.includes('數量'))) qtyStr = line[k];
+                if (!note && (k.includes('說明') || k.includes('備註'))) note = line[k];
+            });
+            const qty = String(qtyStr).replace(/[^0-9.]/g, '') || '';
             const date = line['預計出貨日期 (A)'] || '';
             const isWeight = String(line._unitPriceStr || '').includes('*');
 
@@ -498,7 +504,7 @@ const OrderList = (() => {
             const nameEl = document.querySelector(`.od-name[data-line-idx="${idx}"]`);
             if (nameEl) {
                 line['品項名稱'] = nameEl.value;
-                line['數量'] = document.querySelector(`.od-qty[data-line-idx="${idx}"]`)?.value || '';
+                line['數量'] = document.querySelector(`.od-qty[data-line-idx="${idx}"]`)?.value ?? '';
                 line['說明'] = document.querySelector(`.od-note[data-line-idx="${idx}"]`)?.value || '';
                 line['預計出貨日期 (A)'] = fromInputDate(document.querySelector(`.od-date[data-line-idx="${idx}"]`)?.value || '');
             }
@@ -525,7 +531,17 @@ const OrderList = (() => {
                  ]);
              } else {
                  const r = line._rowIndex;
-                 updates.push({ range: `${CONFIG.SHEETS.SCHEDULE}!D${r}:F${r}`, values: [[line['品項名稱'] || line['品項'], line['預計出貨日期 (A)'], line['數量'] || line['訂購數量']]] });
+                 
+                 let safeName = '', safeQty = '';
+                 Object.keys(line).forEach(k => {
+                     if (!safeName && k.includes('品項')) safeName = line[k];
+                     if (!safeQty && k.includes('數量')) safeQty = line[k];
+                 });
+                 
+                 const finalName = line['品項名稱'] || safeName || '';
+                 const finalQty = line['數量'] !== undefined && line['數量'] !== '' ? line['數量'] : safeQty;
+                 
+                 updates.push({ range: `${CONFIG.SHEETS.SCHEDULE}!D${r}:F${r}`, values: [[finalName, line['預計出貨日期 (A)'], finalQty]] });
                  updates.push({ range: `${CONFIG.SHEETS.SCHEDULE}!H${r}:J${r}`, values: [[line['小計'] || line['小計價格'], line['說明'] || line['備註'], line['排程狀態']]] });
              }
         });
