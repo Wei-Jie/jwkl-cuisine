@@ -18,6 +18,7 @@
         <button class="nav-btn" data-page="order-new" id="nav-order-new">新增訂單</button>
         <button class="nav-btn" data-page="order-list" id="nav-order-list">排單管理</button>
         <button class="nav-btn" data-page="menu-mgmt" id="nav-menu-mgmt">菜單管理</button>
+        <button class="nav-btn" data-page="expense" id="nav-expense">支出紀錄</button>
         <button class="nav-btn" data-page="revenue" id="nav-revenue">營收統計</button>
     </div>
     <div class="nav-user">
@@ -57,6 +58,9 @@
     <!-- 菜單管理 -->
     <div id="page-menu-mgmt" class="page hidden"></div>
 
+    <!-- 支出紀錄 -->
+    <div id="page-expense" class="page hidden"></div>
+
     <!-- 營收統計 -->
     <div id="page-revenue" class="page hidden"></div>
 
@@ -88,7 +92,7 @@
                 <thead>
                     <tr>
                         <th style="width:20%">品項名稱</th>
-                        <th style="width:12%">數量(g)</th>
+                        <th style="width:12%">數量</th>
                         <th style="width:10%">單價</th>
                         <th style="width:12%">小計</th>
                         <th style="width:25%">說明</th>
@@ -130,6 +134,7 @@
 <script src="js/order-new.js"></script>
 <script src="js/order-list.js"></script>
 <script src="js/menu-mgmt.js"></script>
+<script src="js/expense.js"></script>
 <script src="js/revenue.js"></script>
 <script src="js/app.js"></script>
 
