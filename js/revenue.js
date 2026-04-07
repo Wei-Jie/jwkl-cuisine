@@ -131,11 +131,11 @@ const Revenue = (() => {
 
             // 進一步篩選
             if (catFilter) {
-                const itemsInCat = new Set(menuData.filter(m => m['分類'] === catFilter).map(m => m['菜名']));
-                lines = lines.filter(s => itemsInCat.has(getVal(s, ['品項', '品項名稱'])));
+                const itemsInCat = new Set(menuData.filter(m => m['分類'] === catFilter).map(m => (m['菜名'] || '').trim()));
+                lines = lines.filter(s => itemsInCat.has((getVal(s, ['品項', '品項名稱']) || '').trim()));
             }
-            if (itemFilter) lines = lines.filter(s => getVal(s, ['品項', '品項名稱']) === itemFilter);
-            if (custFilter) lines = lines.filter(s => (getVal(s, ['客戶名稱', '顧客名稱']) || '')?.includes(custFilter));
+            if (itemFilter) lines = lines.filter(s => (getVal(s, ['品項', '品項名稱']) || '').trim() === itemFilter.trim());
+            if (custFilter) lines = lines.filter(s => (getVal(s, ['客戶名稱', '顧客名稱']) || '')?.includes(custFilter.trim()));
 
             // 整體統計
             const totalOrders = new Set(lines.map(s => s['訂單編號'])).size;
@@ -163,7 +163,7 @@ const Revenue = (() => {
                 if (!name) return; // 防呆
                 
                 if (!itemStats[name]) {
-                    const menuItem = menuData.find(m => m['菜名'] === name);
+                    const menuItem = menuData.find(m => (m['菜名'] || '').trim() === name.trim());
                     const cost = parseFloat(getVal(menuItem || {}, ['預估成本'])) || 0;
                     itemStats[name] = { qty: 0, amount: 0, category: menuItem?.['分類'] || '-', unitCost: cost };
                 }
