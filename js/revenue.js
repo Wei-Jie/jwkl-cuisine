@@ -52,7 +52,14 @@ const Revenue = (() => {
             <div class="card card-full">
                 <h2 class="card-title">各品項銷售與毛利分析</h2>
                 <div class="table-wrap"><table class="data-table" id="rv-items-table">
-                    <thead><tr><th>品項</th><th>分類</th><th class="text-right">銷售數量</th><th class="text-right">銷售金額</th><th class="text-right">預估成本</th><th class="text-right">預估毛利</th></tr></thead>
+                    <thead><tr>
+                        <th style="text-align:left;">品項</th>
+                        <th style="text-align:left;">分類</th>
+                        <th style="text-align:right;">銷售數量</th>
+                        <th style="text-align:right;">銷售金額</th>
+                        <th style="text-align:right;">預估成本</th>
+                        <th style="text-align:right;">預估毛利</th>
+                    </tr></thead>
                     <tbody id="rv-items-body"></tbody>
                 </table></div>
             </div>
@@ -60,7 +67,11 @@ const Revenue = (() => {
             <div class="card card-full mt-16">
                 <h2 class="card-title">各顧客消費</h2>
                 <div class="table-wrap"><table class="data-table" id="rv-cust-table">
-                    <thead><tr><th>顧客名稱</th><th class="text-right">訂單筆數</th><th class="text-right">消費金額</th></tr></thead>
+                    <thead><tr>
+                        <th style="text-align:left;">顧客名稱</th>
+                        <th style="text-align:right;">訂單筆數</th>
+                        <th style="text-align:right;">消費金額</th>
+                    </tr></thead>
                     <tbody id="rv-cust-body"></tbody>
                 </table></div>
             </div>
@@ -113,10 +124,10 @@ const Revenue = (() => {
             // 進一步篩選
             if (catFilter) {
                 const itemsInCat = new Set(menuData.filter(m => m['分類'] === catFilter).map(m => m['菜名']));
-                lines = lines.filter(s => itemsInCat.has(s['品項']));
+                lines = lines.filter(s => itemsInCat.has(s['品項'] || s['品項名稱']));
             }
-            if (itemFilter) lines = lines.filter(s => s['品項'] === itemFilter);
-            if (custFilter) lines = lines.filter(s => s['客戶名稱']?.includes(custFilter));
+            if (itemFilter) lines = lines.filter(s => (s['品項'] || s['品項名稱']) === itemFilter);
+            if (custFilter) lines = lines.filter(s => (s['客戶名稱'] || s['顧客名稱'] || '')?.includes(custFilter));
 
             // 整體統計
             const totalOrders = new Set(lines.map(s => s['訂單編號'])).size;
@@ -124,14 +135,13 @@ const Revenue = (() => {
             filteredOrders.forEach(o => {
                 if (!orderIds.has(o['訂單編號'])) return;
                 const amt = parseFloat(o['訂單金額']) || 0;
-                // 若有篩選條件，需按品項比例計算（簡化：只計算符合品項的小計）
                 totalRevenue += amt;
                 if (o['收款日期']) collectedRevenue += amt;
             });
 
-            // 若有品項篩選，改用排單表小計加總
+            // 若有品項/顧客篩選，改用排單表小計重新計算加總
             if (catFilter || itemFilter || custFilter) {
-                totalRevenue = lines.reduce((sum, l) => sum + (parseFloat(l['小計價格']) || 0), 0);
+                totalRevenue = lines.reduce((sum, l) => sum + (parseFloat(l['小計價格']) || parseFloat(l['小計']) || 0), 0);
                 const filteredIds = new Set(lines.map(l => l['訂單編號']));
                 collectedRevenue = filteredOrders
                     .filter(o => filteredIds.has(o['訂單編號']) && o['收款日期'])
@@ -141,22 +151,27 @@ const Revenue = (() => {
             // 品項統計
             const itemStats = {};
             lines.forEach(l => {
-                const name = l['品項'];
+                const name = l['品項'] || l['品項名稱'];
+                if (!name) return; // 防呆
+                
                 if (!itemStats[name]) {
                     const menuItem = menuData.find(m => m['菜名'] === name);
-                    itemStats[name] = { qty: 0, amount: 0, category: menuItem?.['分類'] || '-' };
+                    const cost = parseFloat(menuItem?.['預估成本']) || 0;
+                    itemStats[name] = { qty: 0, amount: 0, category: menuItem?.['分類'] || '-', unitCost: cost };
                 }
-                itemStats[name].qty += parseInt(l['訂購數量']) || 0;
-                itemStats[name].amount += parseFloat(l['小計價格']) || 0;
+                const qtyVal = parseFloat(l['訂購數量']) || parseFloat(l['數量']) || 0;
+                const amtVal = parseFloat(l['小計價格']) || parseFloat(l['小計']) || 0;
+                itemStats[name].qty += qtyVal;
+                itemStats[name].amount += amtVal;
             });
 
             // 顧客統計
             const custStats = {};
             lines.forEach(l => {
-                const cust = l['客戶名稱'];
+                const cust = l['客戶名稱'] || l['顧客名稱'] || '未設定';
                 if (!custStats[cust]) custStats[cust] = { orders: new Set(), amount: 0 };
                 custStats[cust].orders.add(l['訂單編號']);
-                custStats[cust].amount += parseFloat(l['小計價格']) || 0;
+                custStats[cust].amount += parseFloat(l['小計價格']) || parseFloat(l['小計']) || 0;
             });
 
             renderResult({ totalOrders, totalRevenue, collectedRevenue, itemStats, custStats });
@@ -191,21 +206,27 @@ const Revenue = (() => {
 
         // 品項表
         const sortedItems = Object.entries(itemStats).sort((a, b) => b[1].amount - a[1].amount);
-        document.getElementById('rv-items-body').innerHTML = sortedItems.map(([name, s]) => `
+        document.getElementById('rv-items-body').innerHTML = sortedItems.map(([name, s]) => {
+            const totalCost = s.unitCost * s.qty;
+            const profit = s.amount - totalCost;
+            return `
             <tr>
                 <td>${name}</td>
                 <td><span class="tag">${s.category}</span></td>
-                <td class="text-right">${s.qty}</td>
-                <td class="text-right fw-medium">${s.amount ? '$' + s.amount.toLocaleString('zh-TW') : '秤重'}</td>
-            </tr>`).join('') || `<tr><td colspan="4" class="text-center text-secondary">無資料</td></tr>`;
+                <td style="text-align:right;">${s.qty}</td>
+                <td style="text-align:right;" class="fw-medium">${s.amount ? '$' + s.amount.toLocaleString('zh-TW') : '-'}</td>
+                <td style="text-align:right;" class="text-secondary">${totalCost ? '$' + totalCost.toLocaleString('zh-TW') : '-'}</td>
+                <td style="text-align:right;" class="fw-medium" style="color: ${profit > 0 ? 'var(--color-success)' : (profit < 0 ? 'var(--color-danger)' : '')}">${profit ? '$' + profit.toLocaleString('zh-TW') : '-'}</td>
+            </tr>`;
+        }).join('') || `<tr><td colspan="6" class="text-center text-secondary">無資料</td></tr>`;
 
         // 顧客表
         const sortedCust = Object.entries(custStats).sort((a, b) => b[1].amount - a[1].amount);
         document.getElementById('rv-cust-body').innerHTML = sortedCust.map(([name, s]) => `
             <tr>
                 <td>${name}</td>
-                <td class="text-right">${s.orders.size}</td>
-                <td class="text-right fw-medium">$${s.amount.toLocaleString('zh-TW')}</td>
+                <td style="text-align:right;">${s.orders.size}</td>
+                <td style="text-align:right;" class="fw-medium">$${s.amount.toLocaleString('zh-TW')}</td>
             </tr>`).join('') || `<tr><td colspan="3" class="text-center text-secondary">無資料</td></tr>`;
     }
 
