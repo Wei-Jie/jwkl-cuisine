@@ -216,7 +216,7 @@ const OrderList = (() => {
 
         showLoading(true);
         try {
-            const updates = []; // { range, values }
+            const updates = []; // { sheet, data: { id, rowValues } }
 
             for (const cb of checked) {
                 const idx = parseInt(cb.dataset.idx);
@@ -231,23 +231,34 @@ const OrderList = (() => {
                 const payEl = document.querySelector(`.pay-date[data-idx="${idx}"]`);
                 const newPayDate = fromInputDate(payEl?.value || '');
 
-                // 更新訂單主檔收款日期（E欄）
-                const orderRow = order._rowIndex;
-                updates.push({ range: `${CONFIG.SHEETS.ORDER_MAIN}!E${orderRow}`, values: [[newPayDate]] });
+                const orderHeaders = Object.keys(order).filter(k => !k.startsWith('_'));
+                const orderRow = orderHeaders.map(k => {
+                    if (k === '收款日期') return newPayDate;
+                    return order[k] || '';
+                });
+                updates.push({ sheet: CONFIG.SHEETS.ORDER_MAIN, data: { id: order['ID'], rowValues: orderRow } });
 
-                // 更新排單表排程狀態（J欄）
                 const scheduleLines = allSchedule.filter(s => s['訂單編號'] === orderId);
                 for (const line of scheduleLines) {
-                    // 只向前推進，不退回：待排程→已完成/已出貨；已完成→已出貨
                     const curStatus = line['排程狀態'];
                     let targetStatus = newStatus;
-                    if (curStatus === CONFIG.STATUS.SHIPPED) targetStatus = CONFIG.STATUS.SHIPPED; // 不退回
+                    if (curStatus === CONFIG.STATUS.SHIPPED) targetStatus = CONFIG.STATUS.SHIPPED; 
                     if (curStatus === CONFIG.STATUS.DONE && targetStatus === CONFIG.STATUS.PENDING) targetStatus = CONFIG.STATUS.DONE;
-                    updates.push({ range: `${CONFIG.SHEETS.SCHEDULE}!J${line._rowIndex}`, values: [[targetStatus]] });
+                    
+                    const lineHeaders = Object.keys(line).filter(k => !k.startsWith('_'));
+                    const lineRow = lineHeaders.map(k => {
+                        if (k === '排程狀態') return targetStatus;
+                        return line[k] || '';
+                    });
+                    updates.push({ sheet: CONFIG.SHEETS.SCHEDULE, data: { id: line['ID'], rowValues: lineRow } });
                 }
             }
 
-            await Sheets.batchUpdate(updates);
+            const mainUpdates = updates.filter(u => u.sheet === CONFIG.SHEETS.ORDER_MAIN).map(u => u.data);
+            const schedUpdates = updates.filter(u => u.sheet === CONFIG.SHEETS.SCHEDULE).map(u => u.data);
+            if (mainUpdates.length) await Sheets.batchUpdateById(CONFIG.SHEETS.ORDER_MAIN, mainUpdates);
+            if (schedUpdates.length) await Sheets.batchUpdateById(CONFIG.SHEETS.SCHEDULE, schedUpdates);
+
             showToast('異動儲存成功！', 'success');
             query(); // 重新查詢
         } catch (e) {
@@ -406,8 +417,8 @@ const OrderList = (() => {
     function removeItem(lineIdx) {
         const line = detailLines[lineIdx];
         line._deleted = true;
-        if (line._rowIndex) {
-            deletedRows.push(line._rowIndex);
+        if (line['ID']) {
+            deletedRows.push(line['ID']);
         }
         renderDetailTable();
     }
@@ -517,6 +528,7 @@ const OrderList = (() => {
              
              if (line._isNew) {
                  inserts.push([
+                     generateUUID(), 
                      orderId, 
                      line['排單日期'] || order['訂單日期'], 
                      line['顧客名稱'] || order['顧客名稱'], 
@@ -530,35 +542,22 @@ const OrderList = (() => {
                      ''
                  ]);
              } else {
-                 const r = line._rowIndex;
-                 
-                 let safeName = '', safeQty = '';
-                 Object.keys(line).forEach(k => {
-                     if (!safeName && k.includes('品項')) safeName = line[k];
-                     if (!safeQty && k.includes('數量')) safeQty = line[k];
-                 });
-                 
-                 const finalName = line['品項名稱'] || safeName || '';
-                 const finalQty = line['數量'] !== undefined && line['數量'] !== '' ? line['數量'] : safeQty;
-                 
-                 updates.push({ range: `${CONFIG.SHEETS.SCHEDULE}!D${r}:F${r}`, values: [[finalName, line['預計出貨日期 (A)'], finalQty]] });
-                 updates.push({ range: `${CONFIG.SHEETS.SCHEDULE}!H${r}:J${r}`, values: [[line['小計'] || line['小計價格'], line['說明'] || line['備註'], line['排程狀態']]] });
+                 const lineHeaders = Object.keys(line).filter(k => !k.startsWith('_'));
+                 const lineRow = lineHeaders.map(k => line[k]);
+                 updates.push({ id: line['ID'], rowValues: lineRow });
              }
         });
 
         showLoading(true);
         try {
-            updates.push({
-                range: `${CONFIG.SHEETS.ORDER_MAIN}!C${order._rowIndex}`,
-                values: [[newTotal]]
-            });
+            const orderHeaders = Object.keys(order).filter(k => !k.startsWith('_'));
+            const orderRow = orderHeaders.map(k => k === '訂單金額' ? newTotal : order[k] || '');
+            await Sheets.updateById(CONFIG.SHEETS.ORDER_MAIN, order['ID'], orderRow);
 
-            if (updates.length) await Sheets.batchUpdate(updates);
+            if (updates.length) await Sheets.batchUpdateById(CONFIG.SHEETS.SCHEDULE, updates);
             if (inserts.length) await Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, inserts);
             if (deletedRows.length) {
-                const sheetIds = await Sheets.getSheetIds();
-                const sid = sheetIds[CONFIG.SHEETS.SCHEDULE];
-                await Sheets.deleteRows(sid, deletedRows.map(r => r - 1));
+                await Sheets.batchDeleteById(CONFIG.SHEETS.SCHEDULE, deletedRows);
             }
 
             showToast('明細更新成功！總金額已同步', 'success');

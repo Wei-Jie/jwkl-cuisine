@@ -3,103 +3,59 @@
 // ==============================
 
 const Sheets = (() => {
-    const BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
-    const SID = CONFIG.SPREADSHEET_ID;
 
-    function token() {
-        return Auth.getToken();
-    }
-
-    function headers() {
-        return {
-            'Authorization': `Bearer ${token()}`,
-            'Content-Type': 'application/json'
-        };
-    }
-
-    async function request(url, options = {}) {
-        const res = await fetch(url, { ...options, headers: headers() });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error?.message || `HTTP ${res.status}`);
+    async function requestGAS(payload) {
+        // App.onLogin() 或是其他地方呼叫時，會對 GAS_URL 發送 POST
+        // 注意：Web App 預設會遇到 Redirect 跟 CORS，GAS 這邊處理方式已經設置好 TEXT/JSON
+        // 如果瀏覽器仍跳 CORS 錯誤，可以在 request 加入 mode: 'cors' 或是 body 轉換。
+        const res = await fetch(CONFIG.GAS_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8', // GAS 偏好 text/plain 避免 preflight OPTIONS 的一些雷
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        let result;
+        try {
+            result = await res.json();
+        } catch(e) {
+            throw new Error('伺服器回應異常，可能網址錯誤或需要重新部署');
         }
-        return res.json();
+        
+        if (result.status === 'error') {
+            throw new Error(result.error);
+        }
+        return result;
     }
 
-    /** 取得試算表基本資訊（sheetId 等） */
-    async function getSpreadsheetInfo() {
-        return request(`${BASE}/${SID}?fields=sheets(properties(sheetId,title))`);
-    }
-
-    /** 讀取指定範圍的值 */
-    async function getValues(range) {
-        const url = `${BASE}/${SID}/values/${encodeURIComponent(range)}`;
-        const data = await request(url);
-        return data.values || [];
-    }
-
-    /** 讀取整個工作表（自動取全欄） */
     async function getSheet(sheetName) {
-        return getValues(`${sheetName}!A:Z`);
+        const res = await requestGAS({ action: 'QUERY', sheetName: sheetName });
+        return res.data || [];
     }
 
-    /** 追加列到工作表末尾 */
     async function appendRows(sheetName, values) {
-        const url = `${BASE}/${SID}/values/${encodeURIComponent(sheetName + '!A1')}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-        return request(url, {
-            method: 'POST',
-            body: JSON.stringify({ values })
-        });
+        return requestGAS({ action: 'APPEND', sheetName: sheetName, values: values });
     }
 
-    /** 更新單一範圍 */
-    async function updateRange(range, values) {
-        const url = `${BASE}/${SID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
-        return request(url, {
-            method: 'PUT',
-            body: JSON.stringify({ values })
-        });
+    async function updateById(sheetName, id, rowValues) {
+        return requestGAS({ action: 'UPDATE_BY_ID', sheetName: sheetName, id: id, rowValues: rowValues });
     }
 
-    /** 批量更新多個範圍 */
-    async function batchUpdate(dataArr) {
-        // dataArr: [{ range, values }, ...]
-        const url = `${BASE}/${SID}/values:batchUpdate`;
-        return request(url, {
-            method: 'POST',
-            body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: dataArr })
-        });
+    async function batchUpdateById(sheetName, updates) {
+        // updates = [{ id: 'xx', rowValues: [...] }, ...]
+        return requestGAS({ action: 'BATCH_UPDATE', sheetName: sheetName, updates: updates });
     }
 
-    /** 批量刪除指定工作表的列（rowIndices: 0-indexed 陣列） */
-    async function deleteRows(sheetId, rowIndices) {
-        if (!rowIndices.length) return;
-        // 從大到小排序，避免刪除後行號偏移
-        const sorted = [...rowIndices].sort((a, b) => b - a);
-        const requests = sorted.map(i => ({
-            deleteDimension: {
-                range: { sheetId, dimension: 'ROWS', startIndex: i, endIndex: i + 1 }
-            }
-        }));
-        const url = `${BASE}/${SID}:batchUpdate`;
-        return request(url, {
-            method: 'POST',
-            body: JSON.stringify({ requests })
-        });
+    async function batchDeleteById(sheetName, ids) {
+        // ids = ['UUID1', 'UUID2']
+        return requestGAS({ action: 'BATCH_DELETE', sheetName: sheetName, ids: ids });
     }
 
-    /**
-     * 取得各工作表的 sheetId（數字）映射
-     * 回傳：{ '訂單主檔': 0, '排單表': 123456, ... }
-     */
+    /** 相容舊程式碼呼叫，我們已經不再依賴 sheetId 進行刪除 */
     async function getSheetIds() {
-        const info = await getSpreadsheetInfo();
-        const map = {};
-        info.sheets.forEach(s => {
-            map[s.properties.title] = s.properties.sheetId;
-        });
-        return map;
+        return {};
     }
 
-    return { getSheet, getValues, appendRows, updateRange, batchUpdate, deleteRows, getSheetIds };
+    return { getSheet, appendRows, updateById, batchUpdateById, batchDeleteById, getSheetIds };
 })();

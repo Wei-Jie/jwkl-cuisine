@@ -67,7 +67,16 @@ function generateOrderId(existingIds, date) {
     return `${prefix}${String(maxSeq + 1).padStart(4, '0')}`;
 }
 
-/** 顯示 Toast 通知 */
+/** 產生隨機 UUID (v4) 以供軟刪除使用 */
+function generateUUID() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    // Fallback for older browsers
+    return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c =>
+        (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+    );
+}
 function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
     if (!toast) return;

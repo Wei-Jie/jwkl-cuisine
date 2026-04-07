@@ -2,9 +2,7 @@
 // 全域設定
 // ==============================
 const CONFIG = {
-    CLIENT_ID: '76458665152-36qnj39f9qb1t3ujg030jagqrmepvihr.apps.googleusercontent.com',
-    SPREADSHEET_ID: '1Lm6KlXy87KYDpDulfNJy7SCp3QCmJ3gkZeUJn2xIu9Q',
-    SCOPES: 'https://www.googleapis.com/auth/spreadsheets',
+    GAS_URL: 'https://script.google.com/macros/s/AKfycbwCD_mxQeE8_6ixx8025kt3byDGdI6L0NiMkLLIaRGYO5eE1uhcFVL2ggwdQ7I1F5pdTA/exec',
     SHEETS: {
         ORDER_MAIN: '訂單主檔',
         ORDER_STATUS: '訂單狀態',
