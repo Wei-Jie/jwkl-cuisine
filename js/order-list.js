@@ -548,19 +548,29 @@ const OrderList = (() => {
              }
         });
 
+        const remainingItemsCount = updates.length + inserts.length;
+
         showLoading(true);
         try {
-            const orderHeaders = Object.keys(order).filter(k => !k.startsWith('_'));
-            const orderRow = orderHeaders.map(k => k === '訂單金額' ? newTotal : order[k] || '');
-            await Sheets.updateById(CONFIG.SHEETS.ORDER_MAIN, order['ID'], orderRow);
+            if (remainingItemsCount === 0) {
+                // 所有明細都被刪除，連帶刪除整筆訂單主檔
+                await Sheets.batchDeleteById(CONFIG.SHEETS.ORDER_MAIN, [order['ID']]);
+                if (deletedRows.length) {
+                    await Sheets.batchDeleteById(CONFIG.SHEETS.SCHEDULE, deletedRows);
+                }
+                showToast('所有明細均已刪除，該訂單已被移除', 'success');
+            } else {
+                const orderHeaders = Object.keys(order).filter(k => !k.startsWith('_'));
+                const orderRow = orderHeaders.map(k => k === '訂單金額' ? newTotal : order[k] || '');
+                await Sheets.updateById(CONFIG.SHEETS.ORDER_MAIN, order['ID'], orderRow);
 
-            if (updates.length) await Sheets.batchUpdateById(CONFIG.SHEETS.SCHEDULE, updates);
-            if (inserts.length) await Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, inserts);
-            if (deletedRows.length) {
-                await Sheets.batchDeleteById(CONFIG.SHEETS.SCHEDULE, deletedRows);
+                if (updates.length) await Sheets.batchUpdateById(CONFIG.SHEETS.SCHEDULE, updates);
+                if (inserts.length) await Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, inserts);
+                if (deletedRows.length) {
+                    await Sheets.batchDeleteById(CONFIG.SHEETS.SCHEDULE, deletedRows);
+                }
+                showToast('明細更新成功！總金額已同步', 'success');
             }
-
-            showToast('明細更新成功！總金額已同步', 'success');
             closeDetail();
             query(); 
         } catch (e) {
