@@ -293,7 +293,7 @@ body {
     font-size: 13px;
 }
 
-.items-table { min-width: 800px; }
+.items-table, #mm-table { min-width: 800px; }
 .items-table select.form-control, .items-table input.form-control { min-width: 85px; }
 .items-table select.od-name, .items-table select[id^="on-item-name"] { min-width: 150px; }
 
