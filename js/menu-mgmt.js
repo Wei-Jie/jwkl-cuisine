@@ -202,8 +202,12 @@ const MenuMgmt = (() => {
 
         showLoading(true);
         try {
-            if (toAppend.length) await Sheets.appendRows(CONFIG.SHEETS.MENU, toAppend);
-            if (toUpdate.length) await Sheets.batchUpdateById(CONFIG.SHEETS.MENU, toUpdate);
+            const tasks = [];
+            if (toAppend.length) tasks.push(Sheets.appendRows(CONFIG.SHEETS.MENU, toAppend));
+            if (toUpdate.length) tasks.push(Sheets.batchUpdateById(CONFIG.SHEETS.MENU, toUpdate));
+            
+            await Promise.all(tasks);
+            
             showToast('儲存成功！', 'success');
             App.clearMenuCache();
             await query();

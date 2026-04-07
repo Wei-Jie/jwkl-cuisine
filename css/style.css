@@ -508,7 +508,7 @@ input[type="checkbox"] {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 8000;
+    z-index: 99999;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease;

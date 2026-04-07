@@ -270,12 +270,13 @@ const OrderNew = (() => {
 
         showLoading(true);
         try {
-            // 寫入訂單主檔
-            await Sheets.appendRows(CONFIG.SHEETS.ORDER_MAIN, [
-                [generateUUID(), orderId, orderDate, total || '', customer, '']
+            // 使用 Promise.all 並發寫入訂單與排單表以節省一半的等待時間
+            await Promise.all([
+                Sheets.appendRows(CONFIG.SHEETS.ORDER_MAIN, [
+                    [generateUUID(), orderId, orderDate, total || '', customer, '']
+                ]),
+                Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, items)
             ]);
-            // 寫入排單表
-            await Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, items);
 
             showToast(`訂單 ${orderId} 已儲存！`, 'success');
             renderPage(); // 重設頁面並產生新訂單編號

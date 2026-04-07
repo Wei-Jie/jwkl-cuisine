@@ -256,8 +256,12 @@ const OrderList = (() => {
 
             const mainUpdates = updates.filter(u => u.sheet === CONFIG.SHEETS.ORDER_MAIN).map(u => u.data);
             const schedUpdates = updates.filter(u => u.sheet === CONFIG.SHEETS.SCHEDULE).map(u => u.data);
-            if (mainUpdates.length) await Sheets.batchUpdateById(CONFIG.SHEETS.ORDER_MAIN, mainUpdates);
-            if (schedUpdates.length) await Sheets.batchUpdateById(CONFIG.SHEETS.SCHEDULE, schedUpdates);
+            
+            const tasks = [];
+            if (mainUpdates.length) tasks.push(Sheets.batchUpdateById(CONFIG.SHEETS.ORDER_MAIN, mainUpdates));
+            if (schedUpdates.length) tasks.push(Sheets.batchUpdateById(CONFIG.SHEETS.SCHEDULE, schedUpdates));
+
+            await Promise.all(tasks);
 
             showToast('異動儲存成功！', 'success');
             query(); // 重新查詢
@@ -562,13 +566,18 @@ const OrderList = (() => {
             } else {
                 const orderHeaders = Object.keys(order).filter(k => !k.startsWith('_'));
                 const orderRow = orderHeaders.map(k => k === '訂單金額' ? newTotal : order[k] || '');
-                await Sheets.updateById(CONFIG.SHEETS.ORDER_MAIN, order['ID'], orderRow);
+                
+                const tasks = [
+                    Sheets.updateById(CONFIG.SHEETS.ORDER_MAIN, order['ID'], orderRow)
+                ];
 
-                if (updates.length) await Sheets.batchUpdateById(CONFIG.SHEETS.SCHEDULE, updates);
-                if (inserts.length) await Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, inserts);
+                if (updates.length) tasks.push(Sheets.batchUpdateById(CONFIG.SHEETS.SCHEDULE, updates));
+                if (inserts.length) tasks.push(Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, inserts));
                 if (deletedRows.length) {
-                    await Sheets.batchDeleteById(CONFIG.SHEETS.SCHEDULE, deletedRows);
+                    tasks.push(Sheets.batchDeleteById(CONFIG.SHEETS.SCHEDULE, deletedRows));
                 }
+                
+                await Promise.all(tasks);
                 showToast('明細更新成功！總金額已同步', 'success');
             }
             closeDetail();
