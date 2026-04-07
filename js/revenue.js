@@ -121,13 +121,21 @@ const Revenue = (() => {
             // 篩選排單表（符合訂單ID範圍）
             let lines = schedule.filter(s => orderIds.has(s['訂單編號']));
 
+            // 容錯幫助函式：忽略空白去匹配屬性
+            const getVal = (obj, keys) => {
+                for (let k of Object.keys(obj)) {
+                    if (keys.includes(k.trim())) return obj[k];
+                }
+                return undefined;
+            };
+
             // 進一步篩選
             if (catFilter) {
                 const itemsInCat = new Set(menuData.filter(m => m['分類'] === catFilter).map(m => m['菜名']));
-                lines = lines.filter(s => itemsInCat.has(s['品項'] || s['品項名稱']));
+                lines = lines.filter(s => itemsInCat.has(getVal(s, ['品項', '品項名稱'])));
             }
-            if (itemFilter) lines = lines.filter(s => (s['品項'] || s['品項名稱']) === itemFilter);
-            if (custFilter) lines = lines.filter(s => (s['客戶名稱'] || s['顧客名稱'] || '')?.includes(custFilter));
+            if (itemFilter) lines = lines.filter(s => getVal(s, ['品項', '品項名稱']) === itemFilter);
+            if (custFilter) lines = lines.filter(s => (getVal(s, ['客戶名稱', '顧客名稱']) || '')?.includes(custFilter));
 
             // 整體統計
             const totalOrders = new Set(lines.map(s => s['訂單編號'])).size;
@@ -136,31 +144,31 @@ const Revenue = (() => {
                 if (!orderIds.has(o['訂單編號'])) return;
                 const amt = parseFloat(o['訂單金額']) || 0;
                 totalRevenue += amt;
-                if (o['收款日期']) collectedRevenue += amt;
+                if (getVal(o, ['收款日期'])) collectedRevenue += amt;
             });
 
             // 若有品項/顧客篩選，改用排單表小計重新計算加總
             if (catFilter || itemFilter || custFilter) {
-                totalRevenue = lines.reduce((sum, l) => sum + (parseFloat(l['小計價格']) || parseFloat(l['小計']) || 0), 0);
+                totalRevenue = lines.reduce((sum, l) => sum + (parseFloat(getVal(l, ['小計價格', '小計'])) || 0), 0);
                 const filteredIds = new Set(lines.map(l => l['訂單編號']));
                 collectedRevenue = filteredOrders
-                    .filter(o => filteredIds.has(o['訂單編號']) && o['收款日期'])
+                    .filter(o => filteredIds.has(o['訂單編號']) && getVal(o, ['收款日期']))
                     .reduce((sum, o) => sum + (parseFloat(o['訂單金額']) || 0), 0);
             }
 
             // 品項統計
             const itemStats = {};
             lines.forEach(l => {
-                const name = l['品項'] || l['品項名稱'];
+                const name = getVal(l, ['品項', '品項名稱']);
                 if (!name) return; // 防呆
                 
                 if (!itemStats[name]) {
                     const menuItem = menuData.find(m => m['菜名'] === name);
-                    const cost = parseFloat(menuItem?.['預估成本']) || 0;
+                    const cost = parseFloat(getVal(menuItem || {}, ['預估成本'])) || 0;
                     itemStats[name] = { qty: 0, amount: 0, category: menuItem?.['分類'] || '-', unitCost: cost };
                 }
-                const qtyVal = parseFloat(l['訂購數量']) || parseFloat(l['數量']) || 0;
-                const amtVal = parseFloat(l['小計價格']) || parseFloat(l['小計']) || 0;
+                const qtyVal = parseFloat(getVal(l, ['訂購數量', '數量'])) || 0;
+                const amtVal = parseFloat(getVal(l, ['小計價格', '小計'])) || 0;
                 itemStats[name].qty += qtyVal;
                 itemStats[name].amount += amtVal;
             });
@@ -168,10 +176,10 @@ const Revenue = (() => {
             // 顧客統計
             const custStats = {};
             lines.forEach(l => {
-                const cust = l['客戶名稱'] || l['顧客名稱'] || '未設定';
+                const cust = getVal(l, ['客戶名稱', '顧客名稱']) || '未設定';
                 if (!custStats[cust]) custStats[cust] = { orders: new Set(), amount: 0 };
                 custStats[cust].orders.add(l['訂單編號']);
-                custStats[cust].amount += parseFloat(l['小計價格']) || parseFloat(l['小計']) || 0;
+                custStats[cust].amount += parseFloat(getVal(l, ['小計價格', '小計'])) || 0;
             });
 
             renderResult({ totalOrders, totalRevenue, collectedRevenue, itemStats, custStats });
