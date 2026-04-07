@@ -104,6 +104,10 @@ const Revenue = (() => {
 
         showLoading(true);
         try {
+            if (menuData.length === 0) {
+                await loadMenuForFilter();
+            }
+
             const [orderRows, scheduleRows] = await Promise.all([
                 Sheets.getSheet(CONFIG.SHEETS.ORDER_MAIN),
                 Sheets.getSheet(CONFIG.SHEETS.SCHEDULE)
@@ -164,13 +168,39 @@ const Revenue = (() => {
                 
                 if (!itemStats[name]) {
                     const menuItem = menuData.find(m => (m['菜名'] || '').trim() === name.trim());
-                    const cost = parseFloat(getVal(menuItem || {}, ['預估成本'])) || 0;
-                    itemStats[name] = { qty: 0, amount: 0, category: menuItem?.['分類'] || '-', unitCost: cost };
+                    
+                    let costPct = 0;
+                    let staticUnitCost = 0;
+                    if (menuItem) {
+                        const costStr = String(getVal(menuItem, ['預估成本']) || '0').trim();
+                        if (costStr.includes('%')) {
+                            costPct = parseFloat(costStr.replace(/[^0-9.]/g, '')) / 100;
+                        } else {
+                            staticUnitCost = parseFloat(costStr.replace(/[^0-9.]/g, '')) || 0;
+                        }
+                    }
+                    
+                    itemStats[name] = { 
+                        qty: 0, 
+                        amount: 0, 
+                        totalCost: 0,
+                        category: menuItem?.['分類'] || '無/舊品項', 
+                        costPct,
+                        staticUnitCost
+                    };
                 }
                 const qtyVal = parseFloat(getVal(l, ['訂購數量', '數量'])) || 0;
                 const amtVal = parseFloat(getVal(l, ['小計價格', '小計'])) || 0;
+                
                 itemStats[name].qty += qtyVal;
                 itemStats[name].amount += amtVal;
+                
+                // 動態加總每筆明細的成本 (百分比看金額，固定成本看數量)
+                if (itemStats[name].costPct > 0) {
+                    itemStats[name].totalCost += amtVal * itemStats[name].costPct;
+                } else {
+                    itemStats[name].totalCost += qtyVal * itemStats[name].staticUnitCost;
+                }
             });
 
             // 顧客統計
@@ -215,7 +245,7 @@ const Revenue = (() => {
         // 品項表
         const sortedItems = Object.entries(itemStats).sort((a, b) => b[1].amount - a[1].amount);
         document.getElementById('rv-items-body').innerHTML = sortedItems.map(([name, s]) => {
-            const totalCost = s.unitCost * s.qty;
+            const totalCost = Math.round(s.totalCost); // 使用最新動態加總的成本並四捨五入
             const profit = s.amount - totalCost;
             return `
             <tr>
