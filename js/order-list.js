@@ -190,9 +190,11 @@ const OrderList = (() => {
 
             return `<tr>
                 <td><input type="checkbox" class="ol-cb" data-idx="${idx}"></td>
-                <td class="fw-medium" style="display:flex;align-items:center;gap:4px">
-                    ${o['訂單編號']}
-                    <button class="btn-icon" onclick="OrderList.showDetail(${idx})" title="查看明細">📝</button>
+                <td class="fw-medium">
+                    <div style="display:flex;align-items:center;gap:4px">
+                        ${o['訂單編號']}
+                        <button class="btn-icon" onclick="OrderList.showDetail(${idx})" title="查看明細">📝</button>
+                    </div>
                 </td>
                 <td>${o['訂單日期']}</td>
                 <td>${o['顧客名稱']}</td>
