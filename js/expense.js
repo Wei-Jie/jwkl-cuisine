@@ -146,7 +146,7 @@ const ExpenseMgmt = (() => {
         showLoading(true);
         try {
             await Sheets.appendRows(CONFIG.SHEETS.EXPENSES, [
-                [date, item, amount, cat, note]
+                [generateUUID(), date, item, amount, cat, note]
             ]);
             showToast('新增支出紀錄成功！', 'success');
             
@@ -170,16 +170,15 @@ const ExpenseMgmt = (() => {
         const ok = await showConfirm(`確定要刪除已勾選的 ${checked.length} 筆紀錄嗎？此動作無法復原。`);
         if (!ok) return;
 
-        const rowIndices = [];
+        const idsToDelete = [];
         checked.forEach(cb => {
             const idx = parseInt(cb.dataset.idx);
-            const item = recentExpenses[idx];
-            rowIndices.push(item._rowIndex - 1); // Sheets API 刪除要 0-indexed
+            idsToDelete.push(recentExpenses[idx]['ID']);
         });
 
         showLoading(true);
         try {
-            await Sheets.deleteRows(sheetId, rowIndices);
+            await Sheets.batchDeleteById(CONFIG.SHEETS.EXPENSES, idsToDelete);
             showToast('刪除成功！', 'success');
             await loadRecentExpenses();
         } catch (e) {
@@ -208,15 +207,14 @@ const ExpenseMgmt = (() => {
 
             const item = recentExpenses[idx];
             const dateStr = fromInputDate(getValue('日期'));
-            const row = [dateStr, getValue('支出項目'), getValue('金額'), getValue('分類'), getValue('備註')];
+            const row = [item['ID'], dateStr, getValue('支出項目'), getValue('金額'), getValue('分類'), getValue('備註')];
             
-            // 更新整列（A~E欄）
-            toUpdate.push({ range: `${CONFIG.SHEETS.EXPENSES}!A${item._rowIndex}:E${item._rowIndex}`, values: [row] });
+            toUpdate.push({ id: item['ID'], rowValues: row });
         });
 
         showLoading(true);
         try {
-            await Sheets.batchUpdate(toUpdate);
+            await Sheets.batchUpdateById(CONFIG.SHEETS.EXPENSES, toUpdate);
             showToast('儲存異動成功！', 'success');
             await loadRecentExpenses();
         } catch (e) {

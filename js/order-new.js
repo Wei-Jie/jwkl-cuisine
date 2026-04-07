@@ -260,7 +260,7 @@ const OrderNew = (() => {
             if (!isWeight) total += subtotal;
 
             items.push([
-                orderId, orderDate, customer, name,
+                generateUUID(), orderId, orderDate, customer, name,
                 shipDate, qty, unitPrice, subtotal || '',
                 '', CONFIG.STATUS.PENDING, ''
             ]);
@@ -272,7 +272,7 @@ const OrderNew = (() => {
         try {
             // 寫入訂單主檔
             await Sheets.appendRows(CONFIG.SHEETS.ORDER_MAIN, [
-                [orderId, orderDate, total || '', customer, '']
+                [generateUUID(), orderId, orderDate, total || '', customer, '']
             ]);
             // 寫入排單表
             await Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, items);

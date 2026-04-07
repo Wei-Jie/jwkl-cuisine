@@ -145,19 +145,19 @@ const MenuMgmt = (() => {
         if (!ok) return;
 
         // 分離新增列（尚未存入 Sheets）和已存在列
-        const existingRows = [];
+        const existingIds = [];
         const newIdxs = [];
         checked.forEach(cb => {
             const idx = parseInt(cb.dataset.idx);
             const item = queryResult[idx];
             if (item._isNew) newIdxs.push(idx);
-            else existingRows.push(item._rowIndex - 1); // 0-indexed
+            else existingIds.push(item['ID']);
         });
 
         showLoading(true);
         try {
-            if (existingRows.length) {
-                await Sheets.deleteRows(sheetId, existingRows);
+            if (existingIds.length) {
+                await Sheets.batchDeleteById(CONFIG.SHEETS.MENU, existingIds);
             }
             showToast('刪除成功！', 'success');
             App.clearMenuCache();
@@ -189,21 +189,21 @@ const MenuMgmt = (() => {
                 return el ? el.value.trim() : '';
             };
 
-            const row = [getValue('分類'), getValue('菜名'), getValue('單價'), getValue('最小訂購數量'), getValue('備註'), getValue('預估成本')];
             const item = queryResult[idx];
 
             if (item._isNew) {
+                const row = [generateUUID(), getValue('分類'), getValue('菜名'), getValue('單價'), getValue('最小訂購數量'), getValue('備註'), getValue('預估成本')];
                 toAppend.push(row);
             } else {
-                // 更新整列（A~F欄）
-                toUpdate.push({ range: `${CONFIG.SHEETS.MENU}!A${item._rowIndex}:F${item._rowIndex}`, values: [row] });
+                const row = [item['ID'], getValue('分類'), getValue('菜名'), getValue('單價'), getValue('最小訂購數量'), getValue('備註'), getValue('預估成本')];
+                toUpdate.push({ id: item['ID'], rowValues: row });
             }
         });
 
         showLoading(true);
         try {
             if (toAppend.length) await Sheets.appendRows(CONFIG.SHEETS.MENU, toAppend);
-            if (toUpdate.length) await Sheets.batchUpdate(toUpdate);
+            if (toUpdate.length) await Sheets.batchUpdateById(CONFIG.SHEETS.MENU, toUpdate);
             showToast('儲存成功！', 'success');
             App.clearMenuCache();
             await query();
