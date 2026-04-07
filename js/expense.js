@@ -3,7 +3,12 @@
 // ==============================
 
 const ExpenseMgmt = (() => {
+    let recentExpenses = [];
+    let sheetId = null;
+    const CATEGORIES = ['食材', '包裝耗材', '水電瓦斯', '運費', '雜支'];
+
     function init() {
+        sheetId = App.getSheetId(CONFIG.SHEETS.EXPENSES);
         const page = document.getElementById('page-expense');
         
         page.innerHTML = `
@@ -19,11 +24,7 @@ const ExpenseMgmt = (() => {
                 <div class="form-group">
                     <label class="form-label">分類 <span class="required">*</span></label>
                     <select id="ex-cat" class="form-control">
-                        <option value="食材">食材</option>
-                        <option value="包裝耗材">包裝耗材</option>
-                        <option value="水電瓦斯">水電瓦斯</option>
-                        <option value="運費">運費</option>
-                        <option value="雜支">雜支</option>
+                        ${CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group">
@@ -44,20 +45,34 @@ const ExpenseMgmt = (() => {
                 </div>
             </div>
             <div class="action-row" style="margin-top:24px">
-                <button class="btn btn-primary" onclick="ExpenseMgmt.saveExpense()">💾 儲存支出紀錄</button>
+                <button class="btn btn-primary" onclick="ExpenseMgmt.saveExpense()">➕ 新增支出</button>
             </div>
         </div>
         
         <div class="card" id="ex-recent-card" style="display:none">
-            <h2 class="card-title">最近 5 筆紀錄</h2>
+            <div class="card-header-row">
+                <div class="result-info">
+                    <h2 class="card-title" style="margin:0">歷史紀錄管理</h2>
+                    <label class="checkbox-label" style="margin-left:12px">
+                        <input type="checkbox" id="ex-select-all" onchange="ExpenseMgmt.toggleAll(this.checked)">
+                        <span>全選</span>
+                    </label>
+                    <span id="ex-count" class="text-secondary text-sm"></span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-danger btn-sm" onclick="ExpenseMgmt.deleteSelected()">🗑 刪除勾選</button>
+                    <button class="btn btn-primary btn-sm" onclick="ExpenseMgmt.saveAll()">💾 儲存異動</button>
+                </div>
+            </div>
             <div class="table-wrap">
-                <table class="data-table">
+                <table class="data-table" id="ex-table" style="min-width: 800px;">
                     <thead>
                         <tr>
+                            <th style="width:40px"></th>
                             <th style="width:15%">日期</th>
                             <th style="width:15%">分類</th>
-                            <th style="width:30%">項目</th>
-                            <th class="text-right" style="width:15%">金額</th>
+                            <th style="width:25%">項目</th>
+                            <th style="width:15%">金額</th>
                             <th style="width:25%">備註</th>
                         </tr>
                     </thead>
@@ -74,24 +89,44 @@ const ExpenseMgmt = (() => {
         try {
             const rows = await Sheets.getSheet(CONFIG.SHEETS.EXPENSES);
             const objects = rowsToObjects(rows);
+            
             if (objects.length > 0) {
                 document.getElementById('ex-recent-card').style.display = 'block';
-                // 取最後 5 筆，反轉顯示
-                const recent = objects.slice(-5).reverse();
-                const tbody = document.getElementById('ex-recent-body');
-                tbody.innerHTML = recent.map(o => `
-                    <tr>
-                        <td>${o['日期']}</td>
-                        <td><span class="tag">${o['分類']}</span></td>
-                        <td>${o['支出項目']}</td>
-                        <td class="text-right fw-medium text-danger">$${Number(o['金額']).toLocaleString('zh-TW')}</td>
-                        <td class="text-secondary text-sm">${o['備註']}</td>
-                    </tr>
-                `).join('');
+                // 取最後 30 筆，反轉顯示 (新的在上面)
+                recentExpenses = objects.slice(-30).reverse();
+                document.getElementById('ex-count').textContent = `(顯示最新的 ${recentExpenses.length} 筆)`;
+                renderTable();
+            } else {
+                document.getElementById('ex-recent-card').style.display = 'none';
+                recentExpenses = [];
             }
         } catch (e) {
-            console.log('尚未有支出紀錄表或無資料');
+            console.log('尚未有支出紀錄表或無資料', e);
         }
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('ex-recent-body');
+        document.getElementById('ex-select-all').checked = false;
+
+        tbody.innerHTML = recentExpenses.map((o, idx) => `
+            <tr data-idx="${idx}">
+                <td><input type="checkbox" class="ex-cb" data-idx="${idx}"></td>
+                <td><input type="date" class="form-control form-control-sm" data-field="日期" value="${toInputDate(o['日期']) || ''}"></td>
+                <td>
+                    <select class="form-control form-control-sm" data-field="分類">
+                        ${CATEGORIES.map(c => `<option value="${c}" ${o['分類'] === c ? 'selected' : ''}>${c}</option>`).join('')}
+                    </select>
+                </td>
+                <td><input type="text" class="form-control form-control-sm" data-field="支出項目" value="${o['支出項目'] || ''}"></td>
+                <td><input type="number" class="form-control form-control-sm" data-field="金額" value="${o['金額'] || ''}" min="0"></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="備註" value="${o['備註'] || ''}"></td>
+            </tr>
+        `).join('');
+    }
+
+    function toggleAll(checked) {
+        document.querySelectorAll('.ex-cb').forEach(cb => cb.checked = checked);
     }
 
     async function saveExpense() {
@@ -113,15 +148,14 @@ const ExpenseMgmt = (() => {
             await Sheets.appendRows(CONFIG.SHEETS.EXPENSES, [
                 [date, item, amount, cat, note]
             ]);
-            showToast('支出紀錄儲存成功！', 'success');
+            showToast('新增支出紀錄成功！', 'success');
             
-            // 清空部分欄位方便連續輸入
+            // 清空部分欄位
             document.getElementById('ex-item').value = '';
             document.getElementById('ex-amount').value = '';
             document.getElementById('ex-note').value = '';
             
-            // 重新載入最近紀錄
-            loadRecentExpenses();
+            await loadRecentExpenses();
         } catch (e) {
             showToast('儲存失敗：' + e.message, 'error');
         } finally {
@@ -129,5 +163,68 @@ const ExpenseMgmt = (() => {
         }
     }
 
-    return { init, saveExpense };
+    async function deleteSelected() {
+        const checked = [...document.querySelectorAll('.ex-cb:checked')];
+        if (!checked.length) { showToast('請先勾選要刪除的紀錄', 'error'); return; }
+
+        const ok = await showConfirm(`確定要刪除已勾選的 ${checked.length} 筆紀錄嗎？此動作無法復原。`);
+        if (!ok) return;
+
+        const rowIndices = [];
+        checked.forEach(cb => {
+            const idx = parseInt(cb.dataset.idx);
+            const item = recentExpenses[idx];
+            rowIndices.push(item._rowIndex - 1); // Sheets API 刪除要 0-indexed
+        });
+
+        showLoading(true);
+        try {
+            await Sheets.deleteRows(sheetId, rowIndices);
+            showToast('刪除成功！', 'success');
+            await loadRecentExpenses();
+        } catch (e) {
+            showToast('刪除失敗：' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    async function saveAll() {
+        const checked = [...document.querySelectorAll('.ex-cb:checked')];
+        if (!checked.length) { showToast('請先勾選要儲存異動的紀錄', 'error'); return; }
+
+        const toUpdate = [];
+        const tbody = document.getElementById('ex-recent-body');
+
+        checked.forEach(cb => {
+            const idx = parseInt(cb.dataset.idx);
+            const tr = tbody.querySelector(`tr[data-idx="${idx}"]`);
+            if (!tr) return;
+
+            const getValue = (field) => {
+                const el = tr.querySelector(`[data-field="${field}"]`);
+                return el ? el.value.trim() : '';
+            };
+
+            const item = recentExpenses[idx];
+            const dateStr = fromInputDate(getValue('日期'));
+            const row = [dateStr, getValue('支出項目'), getValue('金額'), getValue('分類'), getValue('備註')];
+            
+            // 更新整列（A~E欄）
+            toUpdate.push({ range: `${CONFIG.SHEETS.EXPENSES}!A${item._rowIndex}:E${item._rowIndex}`, values: [row] });
+        });
+
+        showLoading(true);
+        try {
+            await Sheets.batchUpdate(toUpdate);
+            showToast('儲存異動成功！', 'success');
+            await loadRecentExpenses();
+        } catch (e) {
+            showToast('儲存失敗：' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    return { init, saveExpense, toggleAll, deleteSelected, saveAll };
 })();
