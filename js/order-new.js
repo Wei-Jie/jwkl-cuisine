@@ -131,9 +131,7 @@ const OrderNew = (() => {
                 </select>
             </td>
             <td>
-                <select class="form-control form-control-sm" id="on-item-qty-${id}" onchange="OrderNew.onQtyChange(${id})">
-                    <option value="">-</option>
-                </select>
+                <input type="number" class="form-control form-control-sm" id="on-item-qty-${id}" onchange="OrderNew.onQtyChange(${id})" min="1" step="any" placeholder="公克或數量">
             </td>
             <td><span id="on-item-price-${id}" class="text-secondary">-</span></td>
             <td><span id="on-item-subtotal-${id}" class="fw-medium">-</span></td>
@@ -165,16 +163,12 @@ const OrderNew = (() => {
             return;
         }
 
-        const minQty = parseInt(menuItem['最小訂購數量']) || 1;
+        const minQty = parseFloat(menuItem['最小訂購數量']) || 1;
         const isWeight = String(menuItem['單價']).includes('*');
-        const price = isWeight ? menuItem['單價'] : parseInt(menuItem['單價']) || 0;
+        const price = isWeight ? menuItem['單價'] : parseFloat(menuItem['單價'].toString().replace(/[^0-9.]/g, '')) || 0;
 
-        // 建立數量下拉（1~20，從最小訂購量開始）
-        let qtyOpts = '<option value="">-</option>';
-        for (let q = minQty; q <= 20; q++) {
-            qtyOpts += `<option value="${q}" ${q === (presetQty || minQty) ? 'selected' : ''}>${q}</option>`;
-        }
-        qtyEl.innerHTML = qtyOpts;
+        // 直接設定初始數量值
+        qtyEl.value = presetQty || minQty;
 
         priceEl.textContent = isWeight ? '秤重計價' : `$${price}`;
         noteEl.textContent = menuItem['備註'] || '';
@@ -194,7 +188,7 @@ const OrderNew = (() => {
         const subtotalEl = document.getElementById(`on-item-subtotal-${id}`);
 
         const name = nameEl?.value;
-        const qty = parseInt(qtyEl?.value) || 0;
+        const qty = parseFloat(qtyEl?.value) || 0;
         const menuItem = menuData.find(m => m['菜名'] === name);
 
         if (!menuItem || !qty) { if (subtotalEl) subtotalEl.textContent = '-'; return; }

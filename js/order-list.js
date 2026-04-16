@@ -348,7 +348,7 @@ const OrderList = (() => {
                             ${buildItemOptions(name)}
                         </select>
                     </td>
-                    <td><input type="number" class="form-control form-control-sm od-qty" data-line-idx="${lineIdx}" value="${qty}" onchange="OrderList.onQtyChange(${lineIdx})" min="1" placeholder="數量/g"></td>
+                    <td><input type="number" class="form-control form-control-sm od-qty" data-line-idx="${lineIdx}" value="${qty}" onchange="OrderList.onQtyChange(${lineIdx})" step="any" placeholder="公克或數量"></td>
                     <td><span class="od-price text-secondary" id="od-price-${lineIdx}">${isWeight ? line._unitPriceStr : '$' + (line._unitPrice || 0)}</span></td>
                     <td><span class="od-subtotal fw-medium" id="od-subtotal-${lineIdx}">$${line['小計價格'] || line['小計'] || 0}</span></td>
                     <td><input type="text" class="form-control form-control-sm od-note" data-line-idx="${lineIdx}" value="${note}" placeholder="說明"></td>
