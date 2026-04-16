@@ -46,7 +46,7 @@ const GuestMenu = (() => {
             // 優先序：1. 試算表填好的網址 2. 本地 pic/菜名.jpg 3. 預設圖庫
             const localImg = `pic/${name}.jpg`;
             const spreadsheetImg = m['圖片網址'];
-            const defaultImg = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
+            const defaultImg = 'https://placehold.jp/24/2c3e50/ffffff/400x300.png?text=不好意思%0A圖片製作中';
             
             const finalImg = spreadsheetImg || localImg;
 
