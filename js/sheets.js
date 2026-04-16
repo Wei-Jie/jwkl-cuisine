@@ -57,5 +57,5 @@ const Sheets = (() => {
         return {};
     }
 
-    return { getSheet, appendRows, updateById, batchUpdateById, batchDeleteById, getSheetIds };
+    return { requestGAS, getSheet, appendRows, updateById, batchUpdateById, batchDeleteById, getSheetIds };
 })();
