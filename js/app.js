@@ -10,6 +10,7 @@ const App = (() => {
     const pages = {
         'order-new': OrderNew,
         'order-list': OrderList,
+        'pending-orders': PendingOrders,
         'menu-mgmt': MenuMgmt,
         'expense': ExpenseMgmt,
         'revenue': Revenue
