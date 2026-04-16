@@ -93,11 +93,11 @@ const PendingOrders = (() => {
 
         showLoading(true);
         try {
-            // 1. 產生正式訂單編號 (需先抓現有訂單算出最大號，這裡簡化處理或呼叫 App 邏輯)
-            // 獲取現有訂單以生成 ID
+            // 1. 產生正式訂單編號
             const orderRows = await Sheets.getSheet(CONFIG.SHEETS.ORDER_MAIN);
             const currentOrders = rowsToObjects(orderRows);
-            const nextOrderId = generateOrderId(currentOrders.map(o => o['訂單編號']), d['訂單日期']);
+            const orderDateObj = new Date(d['訂單日期']);
+            const nextOrderId = generateOrderId(currentOrders.map(o => o['訂單編號']), orderDateObj);
             
             const items = JSON.parse(d['品項明細']);
             const scheduleItems = items.map(it => {
