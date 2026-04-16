@@ -39,17 +39,26 @@ const GuestMenu = (() => {
             ? menuData : menuData.filter(m => m['分類'] === currentCategory);
 
         grid.innerHTML = items.map(m => {
+            const name = m['菜名'];
             const price = m['單價'];
             const displayPrice = String(price).includes('*') ? '秤重計價' : `$${price}`;
-            // 嘗試從分頁取得圖片網址，若無則顯示預設圖
-            const imgUrl = m['圖片網址'] || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80';
             
+            // 優先序：1. 試算表填好的網址 2. 本地 pic/菜名.jpg 3. 預設圖庫
+            const localImg = `pic/${name}.jpg`;
+            const spreadsheetImg = m['圖片網址'];
+            const defaultImg = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
+            
+            const finalImg = spreadsheetImg || localImg;
+
             return `
                 <div class="menu-card">
-                    <img src="${imgUrl}" class="menu-img" alt="${m['菜名']}">
+                    <img src="${finalImg}" 
+                         class="menu-img" 
+                         alt="${name}" 
+                         onerror="this.onerror=null;this.src='${defaultImg}';">
                     <div class="menu-content">
                         <span class="menu-cat">${m['分類']}</span>
-                        <span class="menu-name">${m['菜名']}</span>
+                        <span class="menu-name">${name}</span>
                         <div class="menu-note">${m['備註'] || ''}</div>
                         <div class="menu-footer">
                             <span class="menu-price">${displayPrice}</span>
