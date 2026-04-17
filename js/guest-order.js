@@ -91,7 +91,7 @@ const GuestOrder = (() => {
             return;
         }
 
-        const ok = confirm('確定送出預約審核嗎？');
+        const ok = confirm('確定送出預約確認嗎？');
         if (!ok) return;
 
         showLoading(true);
@@ -108,7 +108,7 @@ const GuestOrder = (() => {
                     JSON.stringify(items),
                     document.getElementById('summary-total').textContent.replace('$', ''),
                     note,
-                    '待審核',
+                    '待確認',
                     phone,
                     sns,
                     email

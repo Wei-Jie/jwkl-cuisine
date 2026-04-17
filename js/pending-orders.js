@@ -1,5 +1,5 @@
 // ==============================
-// 模組三：審核預約
+// 模組三：確認預約
 // ==============================
 
 const PendingOrders = (() => {
@@ -14,7 +14,7 @@ const PendingOrders = (() => {
         const page = document.getElementById('page-pending-orders');
         page.innerHTML = `
             <div class="page-header">
-                <h1 class="page-title">審核預約訂單</h1>
+                <h1 class="page-title">確認預約訂單</h1>
                 <span class="text-secondary text-sm">此處為外部客戶提交之待審單項</span>
             </div>
             <div class="card" id="po-list-card">
@@ -44,7 +44,7 @@ const PendingOrders = (() => {
         try {
             const rows = await Sheets.getSheet(CONFIG.SHEETS.PENDING);
             const all = rowsToObjects(rows);
-            pendingData = all.filter(d => d['狀態'] === '待審核');
+            pendingData = all.filter(d => d['狀態'] === '待確認');
             renderTable();
         } catch (e) {
             showToast('預約單讀取失敗: ' + e.message, 'error');
@@ -56,7 +56,7 @@ const PendingOrders = (() => {
     function renderTable() {
         const tbody = document.getElementById('po-tbody');
         if (!pendingData.length) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">目前沒有待審核的預約</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">目前沒有待確認的預約</td></tr>`;
             return;
         }
 
