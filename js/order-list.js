@@ -130,7 +130,7 @@ const OrderList = (() => {
                 const allShipped = lines.length > 0 && lines.every(s => s['排程狀態'] === CONFIG.STATUS.SHIPPED);
                 const computedStatus = hasPending ? CONFIG.STATUS.PENDING
                     : allShipped ? CONFIG.STATUS.SHIPPED
-                    : CONFIG.STATUS.DONE;
+                        : CONFIG.STATUS.DONE;
                 return { ...o, _computedStatus: computedStatus };
             });
 
@@ -244,9 +244,9 @@ const OrderList = (() => {
                 for (const line of scheduleLines) {
                     const curStatus = line['排程狀態'];
                     let targetStatus = newStatus;
-                    if (curStatus === CONFIG.STATUS.SHIPPED) targetStatus = CONFIG.STATUS.SHIPPED; 
+                    if (curStatus === CONFIG.STATUS.SHIPPED) targetStatus = CONFIG.STATUS.SHIPPED;
                     if (curStatus === CONFIG.STATUS.DONE && targetStatus === CONFIG.STATUS.PENDING) targetStatus = CONFIG.STATUS.DONE;
-                    
+
                     const lineHeaders = Object.keys(line).filter(k => !k.startsWith('_'));
                     const lineRow = lineHeaders.map(k => {
                         if (k === '排程狀態') return targetStatus;
@@ -258,7 +258,7 @@ const OrderList = (() => {
 
             const mainUpdates = updates.filter(u => u.sheet === CONFIG.SHEETS.ORDER_MAIN).map(u => u.data);
             const schedUpdates = updates.filter(u => u.sheet === CONFIG.SHEETS.SCHEDULE).map(u => u.data);
-            
+
             const tasks = [];
             if (mainUpdates.length) tasks.push(Sheets.batchUpdateById(CONFIG.SHEETS.ORDER_MAIN, mainUpdates));
             if (schedUpdates.length) tasks.push(Sheets.batchUpdateById(CONFIG.SHEETS.SCHEDULE, schedUpdates));
@@ -292,7 +292,7 @@ const OrderList = (() => {
     function renderDetailTable() {
         const tbody = document.getElementById('od-tbody');
         const visibleLines = detailLines.filter(l => !l._deleted);
-        
+
         if (!visibleLines.length) {
             tbody.innerHTML = `<tr><td colspan="8" class="text-center text-secondary">無明細資料</td></tr>`;
             updateDetailTotal();
@@ -300,11 +300,11 @@ const OrderList = (() => {
         }
 
         tbody.innerHTML = detailLines.map((line, lineIdx) => {
-            if(line._deleted) return '';
-            
+            if (line._deleted) return '';
+
             const status = line['排程狀態'] || '';
             const isPending = status === '待排程';
-            
+
             // 尋找品項名稱與數量，考量各種標題可能性
             let name = '', qtyStr = '', note = '';
             Object.keys(line).forEach(k => {
@@ -333,9 +333,9 @@ const OrderList = (() => {
                 </select>`;
             } else {
                 statusHtml = `<select class="form-control form-control-sm od-status" data-line-idx="${lineIdx}">
-                    <option value="待排程" ${status==='待排程'?'selected':''}>待排程</option>
-                    <option value="已完成" ${status==='已完成'?'selected':''}>已完成</option>
-                    <option value="已出貨" ${status==='已出貨'?'selected':''}>已出貨</option>
+                    <option value="待排程" ${status === '待排程' ? 'selected' : ''}>待排程</option>
+                    <option value="已完成" ${status === '已完成' ? 'selected' : ''}>已完成</option>
+                    <option value="已出貨" ${status === '已出貨' ? 'selected' : ''}>已出貨</option>
                 </select>`;
             }
 
@@ -370,7 +370,7 @@ const OrderList = (() => {
             }
             return trHtml;
         }).join('');
-        
+
         updateDetailTotal();
     }
 
@@ -379,9 +379,9 @@ const OrderList = (() => {
         const order = queryResult[idx];
         const orderId = order['訂單編號'];
         deletedRows = [];
-        
+
         document.getElementById('od-modal-title').textContent = `訂單明細 - ${orderId} (${order['顧客名稱']})`;
-        
+
         const originalLines = allSchedule.filter(s => s['訂單編號'] === orderId);
         detailLines = originalLines.map(l => {
             const name = l['品項'] || l['品項名稱'] || '';
@@ -395,7 +395,7 @@ const OrderList = (() => {
                 _isWeight: isWeight
             };
         });
-        
+
         renderDetailTable();
         document.getElementById('orderDetailModal').classList.add('show');
     }
@@ -403,7 +403,7 @@ const OrderList = (() => {
     function addItem() {
         if (currentDetailIdx === null) return;
         const order = queryResult[currentDetailIdx];
-        
+
         detailLines.push({
             '訂單編號': order['訂單編號'],
             '排單日期': order['訂單日期'],
@@ -434,7 +434,7 @@ const OrderList = (() => {
         const nameEl = document.querySelector(`.od-name[data-line-idx="${lineIdx}"]`);
         const name = nameEl.value;
         const menuItem = menuData.find(m => m['菜名'] === name);
-        
+
         if (!menuItem) {
             line._unitPrice = 0;
             line._isWeight = false;
@@ -445,7 +445,7 @@ const OrderList = (() => {
             line._unitPriceStr = menuItem['單價'];
             line._unitPrice = isWeight ? menuItem['單價'] : parseInt(menuItem['單價']) || 0;
         }
-        
+
         updateDetailSubtotal(lineIdx);
     }
 
@@ -458,9 +458,9 @@ const OrderList = (() => {
         const qtyEl = document.querySelector(`.od-qty[data-line-idx="${lineIdx}"]`);
         const priceEl = document.getElementById(`od-price-${lineIdx}`);
         const subtotalEl = document.getElementById(`od-subtotal-${lineIdx}`);
-        
+
         const qty = parseFloat(qtyEl?.value) || 0;
-        
+
         if (line._isWeight) {
             priceEl.textContent = line._unitPriceStr;
             const trueUnitPrice = parseFloat(line._unitPriceStr) || 0;
@@ -479,7 +479,7 @@ const OrderList = (() => {
     function updateDetailTotal() {
         let total = 0;
         detailLines.forEach((l, idx) => {
-            if(l._deleted) return;
+            if (l._deleted) return;
             const isPending = l['排程狀態'] === '待排程';
             let sub = parseInt(l['小計']) || parseInt(l['小計價格']) || 0;
             const subEl = document.getElementById(`od-subtotal-${idx}`);
@@ -490,7 +490,7 @@ const OrderList = (() => {
             }
             total += sub;
         });
-        
+
         const totalEl = document.getElementById('od-total');
         if (totalEl) totalEl.textContent = `$${total.toLocaleString('zh-TW')}`;
         return total;
@@ -507,16 +507,16 @@ const OrderList = (() => {
         if (currentDetailIdx === null) return;
         const order = queryResult[currentDetailIdx];
         const orderId = order['訂單編號'];
-        
+
         const updates = [];
         const inserts = [];
-        
+
         // 讀取畫面資料同步回細項
         document.querySelectorAll('.od-status').forEach(sel => {
             const idx = sel.dataset.lineIdx;
             const line = detailLines[idx];
-            if(line._deleted) return;
-            
+            if (line._deleted) return;
+
             line['排程狀態'] = sel.value;
             const nameEl = document.querySelector(`.od-name[data-line-idx="${idx}"]`);
             if (nameEl) {
@@ -530,28 +530,28 @@ const OrderList = (() => {
         const newTotal = updateDetailTotal();
 
         detailLines.forEach(line => {
-             if (line._deleted) return; 
-             
-             if (line._isNew) {
-                 inserts.push([
-                     generateUUID(), 
-                     orderId, 
-                     line['排單日期'] || order['訂單日期'], 
-                     line['顧客名稱'] || order['顧客名稱'], 
-                     line['品項名稱'],
-                     line['預計出貨日期 (A)'], 
-                     line['數量'], 
-                     line._unitPriceStr || line._unitPrice || '', 
-                     line['小計'] || '',
-                     line['說明'] || '', 
-                     line['排程狀態'], 
-                     ''
-                 ]);
-             } else {
-                 const lineHeaders = Object.keys(line).filter(k => !k.startsWith('_'));
-                 const lineRow = lineHeaders.map(k => line[k]);
-                 updates.push({ id: line['ID'], rowValues: lineRow });
-             }
+            if (line._deleted) return;
+
+            if (line._isNew) {
+                inserts.push([
+                    generateUUID(),
+                    orderId,
+                    line['排單日期'] || order['訂單日期'],
+                    line['顧客名稱'] || order['顧客名稱'],
+                    line['品項名稱'],
+                    line['預計出貨日期 (A)'],
+                    line['數量'],
+                    line._unitPriceStr || line._unitPrice || '',
+                    line['小計'] || '',
+                    line['說明'] || '',
+                    line['排程狀態'],
+                    ''
+                ]);
+            } else {
+                const lineHeaders = Object.keys(line).filter(k => !k.startsWith('_'));
+                const lineRow = lineHeaders.map(k => line[k]);
+                updates.push({ id: line['ID'], rowValues: lineRow });
+            }
         });
 
         const remainingItemsCount = updates.length + inserts.length;
@@ -568,7 +568,7 @@ const OrderList = (() => {
             } else {
                 const orderHeaders = Object.keys(order).filter(k => !k.startsWith('_'));
                 const orderRow = orderHeaders.map(k => k === '訂單金額' ? newTotal : order[k] || '');
-                
+
                 const tasks = [
                     Sheets.updateById(CONFIG.SHEETS.ORDER_MAIN, order['ID'], orderRow)
                 ];
@@ -578,12 +578,12 @@ const OrderList = (() => {
                 if (deletedRows.length) {
                     tasks.push(Sheets.batchDeleteById(CONFIG.SHEETS.SCHEDULE, deletedRows));
                 }
-                
+
                 await Promise.all(tasks);
                 showToast('明細更新成功！總金額已同步', 'success');
             }
             closeDetail();
-            query(); 
+            query();
         } catch (e) {
             showToast('更新失敗：' + e.message, 'error');
         } finally {

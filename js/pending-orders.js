@@ -10,7 +10,7 @@ const PendingOrders = (() => {
         try {
             menuData = await App.getMenu();
         } catch (e) { /* silent */ }
-        
+
         const page = document.getElementById('page-pending-orders');
         page.innerHTML = `
             <div class="page-header">
@@ -25,7 +25,7 @@ const PendingOrders = (() => {
                                 <th>提交時間</th>
                                 <th>預定日期</th>
                                 <th>顧客名稱</th>
-                                <th>聯繫方式</th>
+                                <th>聯絡方式</th>
                                 <th>預估金額</th>
                                 <th>品項明細</th>
                                 <th style="width:180px">動作</th>
@@ -65,14 +65,14 @@ const PendingOrders = (() => {
             try {
                 const items = JSON.parse(d['品項明細'] || '[]');
                 itemsHtml = items.map(it => `${escapeHtml(it.name)} x${escapeHtml(it.qty)}`).join('<br>');
-            } catch(e) { itemsHtml = '解析錯誤'; }
+            } catch (e) { itemsHtml = '解析錯誤'; }
 
             return `
                 <tr>
                     <td class="text-sm">${escapeHtml(d['提交時間'])}</td>
                     <td>${escapeHtml(d['訂單日期'])}</td>
                     <td class="fw-medium">${escapeHtml(d['顧客名稱'])}</td>
-                    <td class="text-secondary">${escapeHtml(d['聯繫方式']) || '-'}</td>
+                    <td class="text-secondary">${escapeHtml(d['聯絡方式']) || '-'}</td>
                     <td class="fw-bold text-accent">$${escapeHtml(d['總金額'])}</td>
                     <td class="text-sm">${itemsHtml}</td>
                     <td>
@@ -98,14 +98,14 @@ const PendingOrders = (() => {
             const currentOrders = rowsToObjects(orderRows);
             const orderDateObj = new Date(d['訂單日期']);
             const nextOrderId = generateOrderId(currentOrders.map(o => o['訂單編號']), orderDateObj);
-            
+
             const items = JSON.parse(d['品項明細']);
             const scheduleItems = items.map(it => {
                 const menuItem = menuData.find(m => m['菜名'] === it.name);
                 const isWeight = menuItem && String(menuItem['單價']).includes('*');
                 const unitPrice = menuItem ? (isWeight ? menuItem['單價'] : parseInt(menuItem['單價']) || 0) : 0;
                 const subtotal = isWeight ? '' : unitPrice * parseFloat(it.qty);
-                
+
                 return [
                     generateUUID(),
                     nextOrderId,
@@ -130,13 +130,14 @@ const PendingOrders = (() => {
                     d['訂單日期'],
                     d['總金額'],
                     d['顧客名稱'],
-                    ''
+                    '',
+                    d['聯絡方式'] || ''
                 ]]),
                 Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, scheduleItems),
                 // 3. 更新原預約單狀態
                 Sheets.updateById(CONFIG.SHEETS.PENDING, d['ID'], [
-                    d['ID'], d['提交時間'], d['訂單日期'], d['顧客名稱'], 
-                    d['品項明細'], d['總金額'], d['備註'], '已轉正', d['聯繫方式']
+                    d['ID'], d['提交時間'], d['訂單日期'], d['顧客名稱'],
+                    d['品項明細'], d['總金額'], d['備註'], '已轉正', d['聯絡方式']
                 ])
             ]);
 
