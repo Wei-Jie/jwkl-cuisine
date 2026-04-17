@@ -32,7 +32,9 @@ const GuestTrack = (() => {
                 const msgEl = document.getElementById('result-msg');
                 
                 resultBox.style.display = 'block';
-                statusEl.textContent = `狀態：${statusStr}`;
+                // 防禦性渲染：就算資料庫寫著舊版的待審核，對客人依舊顯示待確認
+                const displayStatus = statusStr === '待審核' ? '待確認' : statusStr;
+                statusEl.textContent = `狀態：${displayStatus}`;
                 
                 if (statusStr === '已接單') {
                     statusEl.style.color = '#27ae60';
