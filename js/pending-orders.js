@@ -44,7 +44,7 @@ const PendingOrders = (() => {
         try {
             const rows = await Sheets.getSheet(CONFIG.SHEETS.PENDING);
             const all = rowsToObjects(rows);
-            pendingData = all.filter(d => d['狀態'] === '待確認');
+            pendingData = all.filter(d => d['狀態'] === '待確認' || d['狀態'] === '待審核');
             renderTable();
         } catch (e) {
             showToast('預約單讀取失敗: ' + e.message, 'error');

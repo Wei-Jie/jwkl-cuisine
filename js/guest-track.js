@@ -37,7 +37,7 @@ const GuestTrack = (() => {
                 if (statusStr === '已接單') {
                     statusEl.style.color = '#27ae60';
                     msgEl.innerHTML = '您的預約已獲老闆確認！<br><br>請關注小灶私廚發出的 Email，當製作完成會發信通知您。';
-                } else if (statusStr === '待確認') {
+                } else if (statusStr === '待確認' || statusStr === '待審核') {
                     statusEl.style.color = '#e67e22';
                     msgEl.innerHTML = '您的訂單正在等待老闆確認中，請稍候。<br>若有急需，可透過 IG 或 LINE 聯繫老闆。';
                 } else {
