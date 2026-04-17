@@ -151,7 +151,6 @@ const PendingOrders = (() => {
                         <p>親愛的 <strong>${d['顧客名稱']}</strong> 您好，</p>
                         <p>這是一封系統自動發送的確認信，您的專屬訂單編號 <strong>${finalOrderId}</strong> 已經被老闆核准，準備為您排單製作囉！</p>
                         <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
-                        <h3 style="color: #2c3e50;">📅 預計取餐與出貨日：${d['訂單日期']}</h3>
                         <p><strong>估計金額：</strong>$${Number(d['總金額']).toLocaleString('zh-TW')} <br>
                         <span style="font-size: 0.85em; color: #7f8c8d;">(此金額為送單時粗估，實際秤重與特殊要求等最終請以老闆報價為準)</span></p>
                         <p><strong>您的訂購內容：</strong><br>

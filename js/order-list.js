@@ -529,7 +529,6 @@ const OrderList = (() => {
                 <p>親愛的 <strong>${order['顧客名稱']}</strong> 您好，</p>
                 <p>這是一封系統自動發送的信件，您的專屬訂單 <strong>${order['訂單編號']}</strong> 已經全部製作完成！可以跟我們聯繫安排取貨囉！</p>
                 <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
-                <p><strong>原始預訂日期：</strong>${order['訂單日期']}</p>
                 <p><strong>完成項目明細：</strong><br>${itemsText}</p>
                 <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
                 <p>接下來煩請您透過我們先前聯繫的管道（Instagram / LINE 或電話），與老闆確認最終的交貨與付款事宜。</p>

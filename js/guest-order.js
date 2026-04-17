@@ -66,11 +66,13 @@ const GuestOrder = (() => {
         const sns = document.getElementById('cust-sns').value.trim();
         const email = document.getElementById('cust-email').value.trim();
         
-        const date = fromInputDate(document.getElementById('order-date').value);
+        const dateObj = new Date();
+        const date = `${dateObj.getFullYear()}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${String(dateObj.getDate()).padStart(2, '0')}`;
+        
         const note = document.getElementById('order-note').value.trim();
         
-        if (!name || !phoneInput || !sns || !date) {
-            alert('請填寫完整資訊（姓名、電話、社群帳號、日期）。');
+        if (!name || !phoneInput || !sns) {
+            alert('請填寫完整資訊（姓名、電話、社群帳號）。');
             return;
         }
 
