@@ -26,7 +26,7 @@ const App = (() => {
     async function onLogin() {
         showLoading(true);
         try {
-            sheetIds = await Sheets.getSheetIds();
+            await Sheets.getSheet(CONFIG.SHEETS.ORDER_MAIN);
             menuCache = null; // 清除快取
             navigateTo('order-new');
         } catch (e) {
