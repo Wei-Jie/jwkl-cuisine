@@ -47,8 +47,12 @@ const OrderNew = (() => {
                     <input type="text" id="on-id" class="form-control" value="${newOrderId}" readonly>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">顧客名稱 <span class="required">*</span></label>
+                    <label class="form-label">顧客名稱 *</label>
                     <input type="text" id="on-customer" class="form-control" placeholder="請輸入顧客名稱">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">聯絡方式</label>
+                    <input type="text" id="on-contact" class="form-control" placeholder="手機 / LINE ID">
                 </div>
             </div>
             <div class="form-row-1">
@@ -229,8 +233,10 @@ const OrderNew = (() => {
 
     async function save() {
         const customer = document.getElementById('on-customer')?.value?.trim();
+        const contactInput = document.getElementById('on-contact')?.value?.trim() || '';
         if (!customer) { showToast('請輸入顧客名稱', 'error'); return; }
 
+        const contact = contactInput.startsWith('0') ? "'" + contactInput : contactInput;
         const orderId = document.getElementById('on-id')?.value;
         const orderDateVal = document.getElementById('on-date')?.value;
         const orderDate = fromInputDate(orderDateVal);
@@ -267,7 +273,7 @@ const OrderNew = (() => {
             // 使用 Promise.all 並發寫入訂單與排單表以節省一半的等待時間
             await Promise.all([
                 Sheets.appendRows(CONFIG.SHEETS.ORDER_MAIN, [
-                    [generateUUID(), orderId, orderDate, total || '', customer, '']
+                    [generateUUID(), orderId, orderDate, total || '', customer, '', contact]
                 ]),
                 Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, items)
             ]);

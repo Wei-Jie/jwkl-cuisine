@@ -71,6 +71,7 @@ const OrderList = (() => {
                             <th>訂單編號</th>
                             <th>訂單日期</th>
                             <th>顧客姓名</th>
+                            <th>聯絡方式</th>
                             <th>訂單金額</th>
                             <th>排程狀態</th>
                             <th>收款日期</th>
@@ -197,7 +198,8 @@ const OrderList = (() => {
                     </div>
                 </td>
                 <td>${o['訂單日期']}</td>
-                <td>${o['顧客名稱']}</td>
+                <td>${escapeHtml(o['顧客名稱'])}</td>
+                <td class="text-secondary text-sm">${escapeHtml(o['聯絡方式']) || '-'}</td>
                 <td>${o['訂單金額'] ? '$' + Number(o['訂單金額']).toLocaleString('zh-TW') : '-'}</td>
                 <td>${statusHtml}</td>
                 <td><input type="date" class="form-control form-control-sm pay-date" data-idx="${idx}" value="${payDate}"></td>

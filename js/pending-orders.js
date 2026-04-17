@@ -131,7 +131,7 @@ const PendingOrders = (() => {
                     d['總金額'],
                     d['顧客名稱'],
                     '',
-                    d['聯絡方式'] || ''
+                    (d['聯絡方式'] && d['聯絡方式'].startsWith('0')) ? "'" + d['聯絡方式'] : (d['聯絡方式'] || '')
                 ]]),
                 Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, scheduleItems),
                 // 3. 更新原預約單狀態

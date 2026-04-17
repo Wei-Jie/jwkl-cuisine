@@ -102,7 +102,7 @@ const GuestOrder = (() => {
                     document.getElementById('summary-total').textContent.replace('$', ''),
                     note,
                     '待審核',
-                    contact
+                    contact.startsWith('0') ? "'" + contact : contact
                 ]]
             };
 
