@@ -40,13 +40,11 @@
     <div id="loginPrompt" class="login-prompt">
         <div class="login-card">
             <h2>🥘 小灶私廚</h2>
-            <p>訂單管理系統<br>請先登入 Google 帳號以存取訂單資料。</p>
+            <p>訂單管理後台<br>請輸入驗證密碼以存取資料。</p>
+            <input type="password" id="admin-password" class="form-control" placeholder="請輸入密碼..." style="margin-bottom: 20px; text-align: center; letter-spacing: 2px;">
             <button class="btn btn-primary" style="width:100%" onclick="Auth.signIn()">
-                🔑 使用 Google 登入
+                🔑 解鎖系統
             </button>
-            <p style="margin-top:16px;font-size:12px;color:#9aa0a6">
-                ⚠️ 請確認已從 <code>http://localhost:8080</code> 開啟本頁面
-            </p>
         </div>
     </div>
 

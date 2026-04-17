@@ -64,16 +64,16 @@ const PendingOrders = (() => {
             let itemsHtml = '';
             try {
                 const items = JSON.parse(d['品項明細'] || '[]');
-                itemsHtml = items.map(it => `${it.name} x${it.qty}`).join('<br>');
+                itemsHtml = items.map(it => `${escapeHtml(it.name)} x${escapeHtml(it.qty)}`).join('<br>');
             } catch(e) { itemsHtml = '解析錯誤'; }
 
             return `
                 <tr>
-                    <td class="text-sm">${d['提交時間']}</td>
-                    <td>${d['訂單日期']}</td>
-                    <td class="fw-medium">${d['顧客名稱']}</td>
-                    <td class="text-secondary">${d['聯繫方式'] || '-'}</td>
-                    <td class="fw-bold text-accent">$${d['總金額']}</td>
+                    <td class="text-sm">${escapeHtml(d['提交時間'])}</td>
+                    <td>${escapeHtml(d['訂單日期'])}</td>
+                    <td class="fw-medium">${escapeHtml(d['顧客名稱'])}</td>
+                    <td class="text-secondary">${escapeHtml(d['聯繫方式']) || '-'}</td>
+                    <td class="fw-bold text-accent">$${escapeHtml(d['總金額'])}</td>
                     <td class="text-sm">${itemsHtml}</td>
                     <td>
                         <div style="display:flex;gap:8px">

@@ -92,6 +92,7 @@ const GuestOrder = (() => {
         try {
             const payload = {
                 action: 'SUBMIT_CUSTOMER_ORDER',
+                sheetName: CONFIG.SHEETS.PENDING,
                 values: [[
                     generateUUID(),
                     formatDate(new Date()), // 提交時間

@@ -5,13 +5,12 @@
 const Sheets = (() => {
 
     async function requestGAS(payload) {
-        // App.onLogin() 或是其他地方呼叫時，會對 GAS_URL 發送 POST
-        // 注意：Web App 預設會遇到 Redirect 跟 CORS，GAS 這邊處理方式已經設置好 TEXT/JSON
-        // 如果瀏覽器仍跳 CORS 錯誤，可以在 request 加入 mode: 'cors' 或是 body 轉換。
+        // [資安防護] 將通關密碼塞入每一個請求中
+        payload.token = Auth.getToken();
         const res = await fetch(CONFIG.GAS_URL, {
             method: 'POST',
             headers: {
-                'Content-Type': 'text/plain;charset=utf-8', // GAS 偏好 text/plain 避免 preflight OPTIONS 的一些雷
+                'Content-Type': 'text/plain;charset=utf-8',
             },
             body: JSON.stringify(payload)
         });

@@ -135,3 +135,14 @@ function debounce(fn, delay = 300) {
         timer = setTimeout(() => fn(...args), delay);
     };
 }
+
+/** HTML 字串安全跳脫，防止 XSS 攻擊 */
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
