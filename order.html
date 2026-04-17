@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,25 +12,116 @@
             --accent: #e67e22;
             --bg-light: #f9f9f9;
         }
-        body { background: var(--bg-light); padding-bottom: 40px; }
-        .guest-container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .form-card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        .section-title { font-size: 1.25rem; font-weight: 700; color: var(--primary); margin: 25px 0 15px; border-left: 4px solid var(--accent); padding-left: 12px; }
-        .section-title:first-of-type { margin-top: 0; }
-        
-        .item-row { display: grid; grid-template-columns: 1fr 80px 40px; gap: 10px; align-items: center; margin-bottom: 12px; padding: 12px; background: #fafafa; border-radius: 8px; }
-        .btn-add { width: 100%; padding: 12px; background: white; border: 2px dashed #ddd; color: #666; border-radius: 8px; cursor: pointer; transition: 0.3s; margin-bottom: 20px; font-weight: 600; }
-        .btn-add:hover { border-color: var(--accent); color: var(--accent); }
-        
-        .summary-box { background: #fdf2e9; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: right; }
-        .summary-total { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
-        
-        .btn-submit { display: block; width: 100%; background: var(--primary); color: white; border: none; padding: 16px; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.3s; margin-top: 30px; }
-        .btn-submit:hover { background: #34495e; transform: translateY(-2px); }
-        
-        .loading-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
+
+        body {
+            background: var(--bg-light);
+            padding-bottom: 40px;
+        }
+
+        .guest-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .form-card {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 25px 0 15px;
+            border-left: 4px solid var(--accent);
+            padding-left: 12px;
+        }
+
+        .section-title:first-of-type {
+            margin-top: 0;
+        }
+
+        .item-row {
+            display: grid;
+            grid-template-columns: 1fr 80px 40px;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: #fafafa;
+            border-radius: 8px;
+        }
+
+        .btn-add {
+            width: 100%;
+            padding: 12px;
+            background: white;
+            border: 2px dashed #ddd;
+            color: #666;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .btn-add:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .summary-box {
+            background: #fdf2e9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: right;
+        }
+
+        .summary-total {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .btn-submit {
+            display: block;
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 30px;
+        }
+
+        .btn-submit:hover {
+            background: #34495e;
+            transform: translateY(-2px);
+        }
+
+        .loading-wrap {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
     </style>
 </head>
+
 <body>
     <div id="loading" class="loading-wrap">
         <div class="loading-spinner"></div>
@@ -42,7 +134,7 @@
 
         <div class="form-card">
             <h1 style="text-align: center; margin-bottom: 30px; color: var(--primary);">預約訂購單</h1>
-            
+
             <div class="section-title">顧客資訊</div>
             <div class="form-group">
                 <label class="form-label">訂購人姓名 *</label>
@@ -50,7 +142,7 @@
             </div>
             <div class="form-group">
                 <label class="form-label">聯繫方式 *</label>
-                <input type="text" id="cust-contact" class="form-control" placeholder="手機 / LINE ID" required>
+                <input type="text" id="cust-contact" class="form-control" placeholder="手機 / LINE ID / IG帳號" required>
             </div>
             <div class="form-group">
                 <label class="form-label">預計需求日期 *</label>
@@ -81,4 +173,5 @@
     <script src="js/sheets.js"></script>
     <script src="js/guest-order.js"></script>
 </body>
+
 </html>
