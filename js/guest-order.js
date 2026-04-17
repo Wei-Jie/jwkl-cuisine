@@ -4,7 +4,6 @@ const GuestOrder = (() => {
 
     async function init() {
         showLoading(true);
-        document.getElementById('order-date').value = todayInputStr();
         try {
             const rows = await Sheets.getSheet(CONFIG.SHEETS.MENU);
             menuData = rowsToObjects(rows);
