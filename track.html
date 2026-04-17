@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小灶私廚 - 預約進度追蹤</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e67e22;
+            --bg-light: #f9f9f9;
+        }
+
+        body {
+            background: var(--bg-light);
+            padding-bottom: 40px;
+        }
+
+        .guest-container {
+            max-width: 500px;
+            margin: 40px auto 0;
+            padding: 20px;
+        }
+
+        .form-card {
+            background: white;
+            padding: 30px 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        .form-title {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+
+        .form-subtitle {
+            color: #666;
+            font-size: 0.95rem;
+            margin-bottom: 30px;
+        }
+
+        .btn-submit {
+            display: block;
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 20px;
+        }
+
+        .btn-submit:hover {
+            background: #34495e;
+            transform: translateY(-2px);
+        }
+
+        #result-box {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 12px;
+            background: #fdf2e9;
+            text-align: left;
+        }
+
+        .result-status {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .result-msg {
+            color: #444;
+            line-height: 1.6;
+        }
+
+        .loading-wrap {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading" class="loading-wrap">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div class="guest-container">
+        <div style="margin-bottom: 20px;">
+            <a href="menu.html" style="color: #666; text-decoration: none;">← 回菜單展示</a>
+        </div>
+
+        <div class="form-card">
+            <h1 class="form-title">🔍 進度追蹤</h1>
+            <p class="form-subtitle">請輸入您預約時使用的電話與訂單編號</p>
+
+            <div style="text-align: left;">
+                <div class="form-group">
+                    <label class="form-label">聯絡電話</label>
+                    <input type="tel" id="track-phone" class="form-control" placeholder="請輸入訂購人電話" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="margin-top: 15px;">訂單編號</label>
+                    <input type="text" id="track-id" class="form-control" placeholder="例如：2604170001" required>
+                </div>
+            </div>
+
+            <button class="btn-submit" onclick="GuestTrack.query()">查詢目前進度</button>
+
+            <div id="result-box">
+                <div class="result-status" id="result-status">狀態：待審核</div>
+                <div class="result-msg" id="result-msg"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/sheets.js"></script>
+    <script src="js/guest-track.js"></script>
+</body>
+
+</html>

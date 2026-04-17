@@ -61,15 +61,20 @@ const GuestOrder = (() => {
     }
 
     async function submit() {
-        const name = document.getElementById('cust-name').value;
-        const contact = document.getElementById('cust-contact').value;
-        const date = fromInputDate(document.getElementById('order-date').value);
-        const note = document.getElementById('order-note').value;
+        const name = document.getElementById('cust-name').value.trim();
+        const phoneInput = document.getElementById('cust-phone').value.trim();
+        const sns = document.getElementById('cust-sns').value.trim();
+        const email = document.getElementById('cust-email').value.trim();
         
-        if (!name || !contact || !date) {
-            alert('請填寫完整資訊。');
+        const date = fromInputDate(document.getElementById('order-date').value);
+        const note = document.getElementById('order-note').value.trim();
+        
+        if (!name || !phoneInput || !sns || !date) {
+            alert('請填寫完整資訊（姓名、電話、社群帳號、日期）。');
             return;
         }
+
+        const phone = phoneInput.startsWith('0') ? "'" + phoneInput : phoneInput;
 
         const items = [];
         const rows = document.querySelectorAll('.item-row');
@@ -95,6 +100,7 @@ const GuestOrder = (() => {
                 sheetName: CONFIG.SHEETS.PENDING,
                 values: [[
                     generateUUID(),
+                    '', // 訂單編號保留給後端產生
                     formatDate(new Date()), // 提交時間
                     date,
                     name,
@@ -102,14 +108,17 @@ const GuestOrder = (() => {
                     document.getElementById('summary-total').textContent.replace('$', ''),
                     note,
                     '待審核',
-                    contact.startsWith('0') ? "'" + contact : contact
+                    phone,
+                    sns,
+                    email
                 ]]
             };
 
             const res = await Sheets.requestGAS(payload);
             if (res.status === 'success') {
-                alert('預約已送出！老闆將盡快連繫您。');
-                window.location.href = 'menu.html';
+                const orderId = res.data ? res.data.orderId : '尚未產生';
+                alert(`預約已送出！\n您的預約單號為：【 ${orderId} 】\n請妥善保管此單號以便前往查詢頁面追蹤進度。老闆將盡快確認。`);
+                window.location.href = 'track.html';
             } else {
                 throw new Error(res.error);
             }

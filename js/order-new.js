@@ -51,8 +51,16 @@ const OrderNew = (() => {
                     <input type="text" id="on-customer" class="form-control" placeholder="請輸入顧客名稱">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">聯絡方式</label>
-                    <input type="text" id="on-contact" class="form-control" placeholder="手機 / LINE ID">
+                    <label class="form-label">聯絡電話</label>
+                    <input type="text" id="on-phone" class="form-control" placeholder="0912...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">SNS (LINE/IG)</label>
+                    <input type="text" id="on-sns" class="form-control" placeholder="帳號或ID">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="on-email" class="form-control" placeholder="信箱">
                 </div>
             </div>
             <div class="form-row-1">
@@ -233,10 +241,13 @@ const OrderNew = (() => {
 
     async function save() {
         const customer = document.getElementById('on-customer')?.value?.trim();
-        const contactInput = document.getElementById('on-contact')?.value?.trim() || '';
+        const phoneInput = document.getElementById('on-phone')?.value?.trim() || '';
+        const sns = document.getElementById('on-sns')?.value?.trim() || '';
+        const email = document.getElementById('on-email')?.value?.trim() || '';
+        
         if (!customer) { showToast('請輸入顧客名稱', 'error'); return; }
 
-        const contact = contactInput.startsWith('0') ? "'" + contactInput : contactInput;
+        const phone = phoneInput.startsWith('0') ? "'" + phoneInput : phoneInput;
         const orderId = document.getElementById('on-id')?.value;
         const orderDateVal = document.getElementById('on-date')?.value;
         const orderDate = fromInputDate(orderDateVal);
@@ -273,7 +284,7 @@ const OrderNew = (() => {
             // 使用 Promise.all 並發寫入訂單與排單表以節省一半的等待時間
             await Promise.all([
                 Sheets.appendRows(CONFIG.SHEETS.ORDER_MAIN, [
-                    [generateUUID(), orderId, orderDate, total || '', customer, '', contact]
+                    [generateUUID(), orderId, orderDate, total || '', customer, '', phone, sns, email]
                 ]),
                 Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, items)
             ]);

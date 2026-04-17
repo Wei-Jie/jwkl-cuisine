@@ -199,7 +199,11 @@ const OrderList = (() => {
                 </td>
                 <td>${o['訂單日期']}</td>
                 <td>${escapeHtml(o['顧客名稱'])}</td>
-                <td class="text-secondary text-sm">${escapeHtml(o['聯絡方式']) || '-'}</td>
+                <td class="text-secondary text-sm" style="line-height: 1.4;">
+                    ${o['電話'] ? '📞 ' + escapeHtml(o['電話']) + '<br>' : ''}
+                    ${o['SNS'] ? '💬 ' + escapeHtml(o['SNS']) + '<br>' : ''}
+                    ${o['Email'] ? '✉️ ' + escapeHtml(o['Email']) : ''}
+                </td>
                 <td>${o['訂單金額'] ? '$' + Number(o['訂單金額']).toLocaleString('zh-TW') : '-'}</td>
                 <td>${statusHtml}</td>
                 <td><input type="date" class="form-control form-control-sm pay-date" data-idx="${idx}" value="${payDate}"></td>
@@ -222,6 +226,8 @@ const OrderList = (() => {
         try {
             const updates = []; // { sheet, data: { id, rowValues } }
 
+            const emailPromises = [];
+
             for (const cb of checked) {
                 const idx = parseInt(cb.dataset.idx);
                 const order = queryResult[idx];
@@ -230,6 +236,14 @@ const OrderList = (() => {
                 // 新排程狀態
                 const statusEl = document.querySelector(`.status-select[data-idx="${idx}"]`);
                 const newStatus = statusEl?.value || order._computedStatus;
+                
+                const scheduleLines = allSchedule.filter(s => s['訂單編號'] === orderId);
+
+                // 判斷是否由非完成狀態變成已完成，且有填信箱
+                if (order._computedStatus !== '已完成' && order._computedStatus !== '已出貨' && newStatus === '已完成' && order['Email']) {
+                    const itemsText = scheduleLines.map(s => `✔️ ${s['品項'] || s['品項名稱']} x${s['訂購數量'] || s['數量']}`).join('<br>');
+                    emailPromises.push(sendCompletionEmail(order, itemsText));
+                }
 
                 // 新收款日期
                 const payEl = document.querySelector(`.pay-date[data-idx="${idx}"]`);
@@ -242,7 +256,6 @@ const OrderList = (() => {
                 });
                 updates.push({ sheet: CONFIG.SHEETS.ORDER_MAIN, data: { id: order['ID'], rowValues: orderRow } });
 
-                const scheduleLines = allSchedule.filter(s => s['訂單編號'] === orderId);
                 for (const line of scheduleLines) {
                     const curStatus = line['排程狀態'];
                     let targetStatus = newStatus;
@@ -266,6 +279,9 @@ const OrderList = (() => {
             if (schedUpdates.length) tasks.push(Sheets.batchUpdateById(CONFIG.SHEETS.SCHEDULE, schedUpdates));
 
             await Promise.all(tasks);
+            if (emailPromises.length > 0) {
+                await Promise.all(emailPromises);
+            }
 
             showToast('異動儲存成功！', 'success');
             query(); // 重新查詢
@@ -505,6 +521,33 @@ const OrderList = (() => {
         document.getElementById('orderDetailModal').classList.remove('show');
     }
 
+    async function sendCompletionEmail(order, itemsText) {
+        if (!order['Email']) return;
+        const htmlBody = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
+                <h2 style="color: #27ae60;">【小灶私廚】訂單製作完成通知 🎉</h2>
+                <p>親愛的 <strong>${order['顧客名稱']}</strong> 您好，</p>
+                <p>這是一封系統自動發送的信件，您的專屬訂單 <strong>${order['訂單編號']}</strong> 已經全部製作完成！可以跟我們聯繫安排取貨囉！</p>
+                <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
+                <p><strong>原始預訂日期：</strong>${order['訂單日期']}</p>
+                <p><strong>完成項目明細：</strong><br>${itemsText}</p>
+                <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
+                <p>接下來煩請您透過我們先前聯繫的管道（Instagram / LINE 或電話），與老闆確認最終的交貨與付款事宜。</p>
+                <p>感謝您的耐心等候，希望您會喜歡這次為您悉心準備的美味！</p>
+                <div style="text-align: center; margin-top: 30px; margin-bottom: 30px;">
+                    <a href="https://www.instagram.com/jwkl_cuisine?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" style="display:inline-block; padding:14px 28px; background:#e67e22; color:#fff; text-decoration:none; border-radius:8px; font-weight:bold; font-size:1.1rem; box-shadow: 0 4px 6px rgba(230,126,34,0.3);">👉 點我聯絡 小灶私廚 IG</a>
+                </div>
+                <p style="font-size: 0.8em; color: #aaa; text-align: center;">※本信件為系統自動發送，請勿直接回覆此信箱。※</p>
+            </div>
+        `;
+        return Sheets.requestGAS({
+            action: 'SEND_EMAIL',
+            to: order['Email'],
+            subject: `【小灶私廚】訂單製作完成約取通知 (${order['訂單編號']})`,
+            htmlBody: htmlBody
+        }).catch(err => console.error('發送完成信件失敗：', err));
+    }
+
     async function saveDetail() {
         if (currentDetailIdx === null) return;
         const order = queryResult[currentDetailIdx];
@@ -512,6 +555,8 @@ const OrderList = (() => {
 
         const updates = [];
         const inserts = [];
+        
+        let isNowCompleted = true;
 
         // 讀取畫面資料同步回細項
         document.querySelectorAll('.od-status').forEach(sel => {
@@ -526,6 +571,9 @@ const OrderList = (() => {
                 line['數量'] = document.querySelector(`.od-qty[data-line-idx="${idx}"]`)?.value ?? '';
                 line['說明'] = document.querySelector(`.od-note[data-line-idx="${idx}"]`)?.value || '';
                 line['預計出貨日期 (A)'] = fromInputDate(document.querySelector(`.od-date[data-line-idx="${idx}"]`)?.value || '');
+            }
+            if (sel.value !== '已完成' && sel.value !== '已出貨') {
+                isNowCompleted = false;
             }
         });
 
@@ -583,6 +631,12 @@ const OrderList = (() => {
 
                 await Promise.all(tasks);
                 showToast('明細更新成功！總金額已同步', 'success');
+
+                const wasCompleted = order._computedStatus === '已完成' || order._computedStatus === '已出貨';
+                if (!wasCompleted && isNowCompleted && order['Email']) {
+                    const itemsText = detailLines.filter(l => !l._deleted).map(l => `✔️ ${l['品項名稱'] || l['品項']} x${l['數量']}`).join('<br>');
+                    await sendCompletionEmail(order, itemsText);
+                }
             }
             closeDetail();
             query();

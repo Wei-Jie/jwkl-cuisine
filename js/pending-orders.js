@@ -97,7 +97,7 @@ const PendingOrders = (() => {
             const orderRows = await Sheets.getSheet(CONFIG.SHEETS.ORDER_MAIN);
             const currentOrders = rowsToObjects(orderRows);
             const orderDateObj = new Date(d['訂單日期']);
-            const nextOrderId = generateOrderId(currentOrders.map(o => o['訂單編號']), orderDateObj);
+            const finalOrderId = d['訂單編號'] || generateOrderId(currentOrders.map(o => o['訂單編號']), orderDateObj);
 
             const items = JSON.parse(d['品項明細']);
             const scheduleItems = items.map(it => {
@@ -108,7 +108,7 @@ const PendingOrders = (() => {
 
                 return [
                     generateUUID(),
-                    nextOrderId,
+                    finalOrderId,
                     d['訂單日期'],
                     d['顧客名稱'],
                     it.name,
@@ -126,22 +126,55 @@ const PendingOrders = (() => {
             await Promise.all([
                 Sheets.appendRows(CONFIG.SHEETS.ORDER_MAIN, [[
                     generateUUID(),
-                    nextOrderId,
+                    finalOrderId,
                     d['訂單日期'],
                     d['總金額'],
                     d['顧客名稱'],
                     '',
-                    (d['聯絡方式'] && d['聯絡方式'].startsWith('0')) ? "'" + d['聯絡方式'] : (d['聯絡方式'] || '')
+                    (d['電話'] && d['電話'].startsWith('0')) ? "'" + d['電話'] : (d['電話'] || ''),
+                    d['SNS'] || '',
+                    d['Email'] || ''
                 ]]),
                 Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, scheduleItems),
                 // 3. 更新原預約單狀態
                 Sheets.updateById(CONFIG.SHEETS.PENDING, d['ID'], [
-                    d['ID'], d['提交時間'], d['訂單日期'], d['顧客名稱'],
-                    d['品項明細'], d['總金額'], d['備註'], '已轉正', d['聯絡方式']
+                    d['ID'], finalOrderId, d['提交時間'], d['訂單日期'], d['顧客名稱'],
+                    d['品項明細'], d['總金額'], d['備註'], '已轉正', d['電話'], d['SNS'], d['Email']
                 ])
             ]);
 
-            showToast(`訂單 ${nextOrderId} 核准成功！`, 'success');
+            // 4. 發送通知信
+            if (d['Email']) {
+                const emailHtml = `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
+                        <h2 style="color: #e67e22;">【小灶私廚】預約成功通知 🎉</h2>
+                        <p>親愛的 <strong>${d['顧客名稱']}</strong> 您好，</p>
+                        <p>這是一封系統自動發送的確認信，您的專屬訂單編號 <strong>${finalOrderId}</strong> 已經被老闆核准，準備為您排單製作囉！</p>
+                        <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
+                        <h3 style="color: #2c3e50;">📅 預計取餐與出貨日：${d['訂單日期']}</h3>
+                        <p><strong>估計金額：</strong>$${Number(d['總金額']).toLocaleString('zh-TW')} <br>
+                        <span style="font-size: 0.85em; color: #7f8c8d;">(此金額為送單時粗估，實際秤重與特殊要求等最終請以老闆報價為準)</span></p>
+                        <p><strong>您的訂購內容：</strong><br>
+                        ${items.map(it => `🍽️ ${it.name} <span style="color:#e67e22">x${it.qty}</span>`).join('<br>')}
+                        </p>
+                        ${d['備註'] ? `<p><strong>特別備註：</strong>${d['備註']}</p>` : ''}
+                        <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
+                        <p>後續如果有任何出貨進度詢問或是微調需求，隨時歡迎透過我們的官方 Instagram 與老闆聯繫確認！</p>
+                        <div style="text-align: center; margin-top: 30px; margin-bottom: 30px;">
+                            <a href="https://www.instagram.com/jwkl_cuisine?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" style="display:inline-block; padding:14px 28px; background:#e67e22; color:#fff; text-decoration:none; border-radius:8px; font-weight:bold; font-size:1.1rem; box-shadow: 0 4px 6px rgba(230,126,34,0.3);">👉 點我前往 小灶私廚 IG</a>
+                        </div>
+                        <p style="font-size: 0.8em; color: #aaa; text-align: center;">※本信件為系統自動發送，請勿直接回覆此信箱。※</p>
+                    </div>
+                `;
+                await Sheets.requestGAS({
+                    action: 'SEND_EMAIL',
+                    to: d['Email'],
+                    subject: `【小灶私廚】預約訂單已成立 (${finalOrderId})`,
+                    htmlBody: emailHtml
+                });
+            }
+
+            showToast(`訂單 ${finalOrderId} 核准成功！`, 'success');
             query();
         } catch (e) {
             showToast('核准失敗: ' + e.message, 'error');
