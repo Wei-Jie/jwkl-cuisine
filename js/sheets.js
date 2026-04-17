@@ -5,8 +5,11 @@
 const Sheets = (() => {
 
     async function requestGAS(payload) {
-        // [資安防護] 將通關密碼塞入每一個請求中
-        payload.token = Auth.getToken();
+        // [資安防護] 若在後台系統 (有 Auth 模組)，則自動附上密碼
+        if (typeof Auth !== 'undefined') {
+            payload.token = Auth.getToken();
+        }
+        
         const res = await fetch(CONFIG.GAS_URL, {
             method: 'POST',
             headers: {
