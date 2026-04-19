@@ -587,27 +587,32 @@ const OrderList = (() => {
 
             line['排程狀態'] = sel.value;
 
+            // 動態找出排單表中實際使用的欄位名稱（可能是「數量」或「訂購數量」）
+            const qtyKey = Object.keys(line).find(k => !k.startsWith('_') && k.includes('數量') && !k.includes('排')) || '數量';
+            const subtotalKey = Object.keys(line).find(k => !k.startsWith('_') && k.includes('小計')) || '小計價格';
+            const noteKey = Object.keys(line).find(k => !k.startsWith('_') && (k.includes('說明') || k.includes('備註'))) || '說明';
+            const nameKey = Object.keys(line).find(k => !k.startsWith('_') && k.includes('品項')) || '品項名稱';
+
             // 數量：所有狀態的列都有 od-qty input
             const qtyEl = document.querySelector(`.od-qty[data-line-idx="${idx}"]`);
-            if (qtyEl) line['數量'] = qtyEl.value;
+            if (qtyEl) line[qtyKey] = qtyEl.value;
 
             // 說明、日期
             const noteEl = document.querySelector(`.od-note[data-line-idx="${idx}"]`);
-            if (noteEl) line['說明'] = noteEl.value;
+            if (noteEl) line[noteKey] = noteEl.value;
             const dateEl = document.querySelector(`.od-date[data-line-idx="${idx}"]`);
             if (dateEl) line['預計出貨日期 (A)'] = fromInputDate(dateEl.value || '');
 
             // 品項名稱：只有待排程的列有 od-name 下拉選單
             const nameEl = document.querySelector(`.od-name[data-line-idx="${idx}"]`);
-            if (nameEl) line['品項名稱'] = nameEl.value;
+            if (nameEl) line[nameKey] = nameEl.value;
 
             // 小計：非待排程的列改用 input#od-subtotal-N 讀取
             const subtotalEl = document.getElementById(`od-subtotal-${idx}`);
             if (subtotalEl && subtotalEl.tagName === 'INPUT') {
                 const sv = parseFloat(subtotalEl.value);
                 if (!isNaN(sv)) {
-                    line['小計'] = sv;
-                    line['小計價格'] = sv;
+                    line[subtotalKey] = sv;
                 }
             }
 
