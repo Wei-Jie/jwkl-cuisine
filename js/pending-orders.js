@@ -22,7 +22,6 @@ const PendingOrders = (() => {
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>提交時間</th>
                                 <th>預定日期</th>
                                 <th>顧客名稱</th>
                                 <th>聯絡方式</th>
