@@ -496,19 +496,31 @@ const OrderList = (() => {
         const priceEl = document.getElementById(`od-price-${lineIdx}`);
         const subtotalEl = document.getElementById(`od-subtotal-${lineIdx}`);
 
+        // 動態找出 line 中真正的小計欄位名稱（可能是「小計」或「小計價格」）
+        const subtotalKey = Object.keys(line).find(k => !k.startsWith('_') && k.includes('小計')) || '小計價格';
+
         const qty = parseFloat(qtyEl?.value) || 0;
 
+        let sub = 0;
         if (line._isWeight) {
-            priceEl.textContent = line._unitPriceStr;
+            if (priceEl) priceEl.textContent = line._unitPriceStr;
             const trueUnitPrice = parseFloat(line._unitPriceStr) || 0;
-            const sub = Math.round(trueUnitPrice * qty);
-            line['小計'] = sub;
-            subtotalEl.textContent = sub ? `$${sub.toLocaleString('zh-TW')}` : '-';
+            sub = Math.round(trueUnitPrice * qty);
         } else {
-            priceEl.textContent = `$${line._unitPrice || 0}`;
-            const sub = (line._unitPrice || 0) * parseInt(qty);
-            line['小計'] = sub;
-            subtotalEl.textContent = sub ? `$${sub.toLocaleString('zh-TW')}` : '-';
+            if (priceEl) priceEl.textContent = `$${line._unitPrice || 0}`;
+            sub = (line._unitPrice || 0) * parseInt(qty);
+        }
+
+        // 更新到正確的 key
+        line[subtotalKey] = sub;
+
+        // 更新畫面：待排程是 span，非待排程是 input
+        if (subtotalEl) {
+            if (subtotalEl.tagName === 'INPUT') {
+                subtotalEl.value = sub || '';
+            } else {
+                subtotalEl.textContent = sub ? `$${sub.toLocaleString('zh-TW')}` : '-';
+            }
         }
         updateDetailTotal();
     }
