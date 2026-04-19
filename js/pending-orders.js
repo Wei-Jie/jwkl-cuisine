@@ -131,7 +131,7 @@ const PendingOrders = (() => {
                     d['總金額'],
                     d['顧客名稱'],
                     '',
-                    (d['電話'] && d['電話'].startsWith('0')) ? "'" + d['電話'] : (d['電話'] || ''),
+                    (d['電話'] && String(d['電話']).startsWith('0')) ? "'" + String(d['電話']) : (String(d['電話'] || '')),
                     d['SNS'] || '',
                     d['Email'] || ''
                 ]]),

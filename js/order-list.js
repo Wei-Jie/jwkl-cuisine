@@ -129,9 +129,15 @@ const OrderList = (() => {
                 const lines = allSchedule.filter(s => s['訂單編號'] === o['訂單編號']);
                 const hasPending = lines.some(s => s['排程狀態'] === CONFIG.STATUS.PENDING);
                 const allShipped = lines.length > 0 && lines.every(s => s['排程狀態'] === CONFIG.STATUS.SHIPPED);
+                const allDoneOrShipped = lines.length > 0 && lines.every(s =>
+                    s['排程狀態'] === CONFIG.STATUS.DONE || s['排程狀態'] === CONFIG.STATUS.SHIPPED
+                );
+                const anyDone = lines.some(s => s['排程狀態'] === CONFIG.STATUS.DONE);
+                // 只有「全部已完成或已出貨，且至少有一個已完成」才算整體已完成
                 const computedStatus = hasPending ? CONFIG.STATUS.PENDING
                     : allShipped ? CONFIG.STATUS.SHIPPED
-                        : CONFIG.STATUS.DONE;
+                        : (allDoneOrShipped && anyDone) ? CONFIG.STATUS.DONE
+                            : CONFIG.STATUS.PENDING;
                 return { ...o, _computedStatus: computedStatus };
             });
 
@@ -358,7 +364,7 @@ const OrderList = (() => {
             }
 
             let trHtml = '';
-            // 如果是待排程，可編輯
+            // 如果是待排程，可完整編輯
             if (isPending) {
                 trHtml = `<tr>
                     <td>
@@ -374,13 +380,26 @@ const OrderList = (() => {
                     <td>${statusHtml}</td>
                     <td><button class="btn-icon" onclick="OrderList.removeItem(${lineIdx})" title="刪除此列">✕</button></td>
                 </tr>`;
-            } else {
-                trHtml = `<tr>
+            } else if (status === '已出貨') {
+                // 已出貨：全部鎖死為純文字，不可修改
+                trHtml = `<tr style="opacity:0.7;">
                     <td>${name}</td>
                     <td>${qty}</td>
                     <td><span class="text-secondary">${isWeight ? line._unitPriceStr : '$' + (line._unitPrice || 0)}</span></td>
-                    <td><span class="od-subtotal fw-medium" id="od-subtotal-${lineIdx}" data-val="${line['小計價格'] || line['小計'] || 0}">$${line['小計價格'] || line['小計'] || 0}</span></td>
+                    <td id="od-subtotal-${lineIdx}" data-val="${line['小計價格'] || line['小計'] || 0}"><span class="fw-medium">$${line['小計價格'] || line['小計'] || 0}</span></td>
                     <td><span class="text-secondary text-sm">${note}</span></td>
+                    <td>${date}</td>
+                    <td>${statusHtml}</td>
+                    <td><span class="text-secondary text-sm">🔒</span></td>
+                </tr>`;
+            } else {
+                // 製作中 / 已完成：品項名稱唯讀，數量與小計可編輯
+                trHtml = `<tr>
+                    <td>${name}</td>
+                    <td><input type="number" class="form-control form-control-sm od-qty" data-line-idx="${lineIdx}" value="${qty}" step="any" placeholder="公克或數量"></td>
+                    <td><span class="text-secondary">${isWeight ? line._unitPriceStr : '$' + (line._unitPrice || 0)}</span></td>
+                    <td><input type="number" class="form-control form-control-sm" id="od-subtotal-${lineIdx}" data-line-idx="${lineIdx}" data-val="${line['小計價格'] || line['小計'] || 0}" value="${line['小計價格'] || line['小計'] || 0}" step="any" placeholder="小計金額"></td>
+                    <td><input type="text" class="form-control form-control-sm od-note" data-line-idx="${lineIdx}" value="${note}" placeholder="說明"></td>
                     <td>${date}</td>
                     <td>${statusHtml}</td>
                     <td></td>
@@ -502,8 +521,11 @@ const OrderList = (() => {
             let sub = parseInt(l['小計']) || parseInt(l['小計價格']) || 0;
             const subEl = document.getElementById(`od-subtotal-${idx}`);
             if (subEl) {
-                const valStr = subEl.dataset.val || subEl.textContent;
-                const cleanVal = valStr.replace(/[$,\s]/g, '');
+                // 非待排程的列現在是 input 元素，直接讀 value
+                const rawVal = subEl.value !== undefined && subEl.tagName === 'INPUT'
+                    ? subEl.value
+                    : (subEl.dataset.val || subEl.textContent);
+                const cleanVal = String(rawVal).replace(/[$,\s]/g, '');
                 if (!isNaN(parseInt(cleanVal))) sub = parseInt(cleanVal);
             }
             total += sub;
@@ -564,13 +586,31 @@ const OrderList = (() => {
             if (line._deleted) return;
 
             line['排程狀態'] = sel.value;
+
+            // 數量：所有狀態的列都有 od-qty input
+            const qtyEl = document.querySelector(`.od-qty[data-line-idx="${idx}"]`);
+            if (qtyEl) line['數量'] = qtyEl.value;
+
+            // 說明、日期
+            const noteEl = document.querySelector(`.od-note[data-line-idx="${idx}"]`);
+            if (noteEl) line['說明'] = noteEl.value;
+            const dateEl = document.querySelector(`.od-date[data-line-idx="${idx}"]`);
+            if (dateEl) line['預計出貨日期 (A)'] = fromInputDate(dateEl.value || '');
+
+            // 品項名稱：只有待排程的列有 od-name 下拉選單
             const nameEl = document.querySelector(`.od-name[data-line-idx="${idx}"]`);
-            if (nameEl) {
-                line['品項名稱'] = nameEl.value;
-                line['數量'] = document.querySelector(`.od-qty[data-line-idx="${idx}"]`)?.value ?? '';
-                line['說明'] = document.querySelector(`.od-note[data-line-idx="${idx}"]`)?.value || '';
-                line['預計出貨日期 (A)'] = fromInputDate(document.querySelector(`.od-date[data-line-idx="${idx}"]`)?.value || '');
+            if (nameEl) line['品項名稱'] = nameEl.value;
+
+            // 小計：非待排程的列改用 input#od-subtotal-N 讀取
+            const subtotalEl = document.getElementById(`od-subtotal-${idx}`);
+            if (subtotalEl && subtotalEl.tagName === 'INPUT') {
+                const sv = parseFloat(subtotalEl.value);
+                if (!isNaN(sv)) {
+                    line['小計'] = sv;
+                    line['小計價格'] = sv;
+                }
             }
+
             if (sel.value !== '已完成' && sel.value !== '已出貨') {
                 isNowCompleted = false;
             }
