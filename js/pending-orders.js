@@ -72,12 +72,17 @@ const PendingOrders = (() => {
                     <td class="text-sm">${escapeHtml(d['提交時間'])}</td>
                     <td>${escapeHtml(d['訂單日期'])}</td>
                     <td class="fw-medium">${escapeHtml(d['顧客名稱'])}</td>
-                    <td class="text-secondary">${escapeHtml(d['聯絡方式']) || '-'}</td>
+                    <td class="text-sm">
+                        ${d['電話'] ? `📞 ${escapeHtml(d['電話'])}<br>` : ''}
+                        ${d['SNS'] ? `📱 ${escapeHtml(d['SNS'])}<br>` : ''}
+                        ${d['Email'] ? `✉️ ${escapeHtml(d['Email'])}` : ''}
+                        ${(!d['電話'] && !d['SNS'] && !d['Email']) ? '-' : ''}
+                    </td>
                     <td class="fw-bold text-accent">$${escapeHtml(d['總金額'])}</td>
                     <td class="text-sm">${itemsHtml}</td>
                     <td>
                         <div style="display:flex;gap:8px">
-                            <button class="btn btn-primary btn-sm" onclick="PendingOrders.approve(${idx})">✅ 核准</button>
+                            <button class="btn btn-primary btn-sm" onclick="PendingOrders.approve(${idx})">✅ 接單</button>
                             <button class="btn btn-outline btn-sm" style="color:red" onclick="PendingOrders.reject(${idx})">✕ 拒絕</button>
                         </div>
                     </td>
@@ -88,7 +93,7 @@ const PendingOrders = (() => {
 
     async function approve(idx) {
         const d = pendingData[idx];
-        const ok = await showConfirm(`確定要核准 ${d['顧客名稱']} 的訂單嗎？\n核准後將正式轉入排單系統。`);
+        const ok = await showConfirm(`確定要接單 ${d['顧客名稱']} 的預定嗎？\n接單後將正式轉入排單系統。`);
         if (!ok) return;
 
         showLoading(true);
@@ -149,7 +154,7 @@ const PendingOrders = (() => {
                     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
                         <h2 style="color: #e67e22;">【小灶私廚】預約成功通知 🎉</h2>
                         <p>親愛的 <strong>${d['顧客名稱']}</strong> 您好，</p>
-                        <p>這是一封系統自動發送的確認信，您的專屬訂單編號 <strong>${finalOrderId}</strong> 已經被老闆核准，準備為您排單製作囉！</p>
+                        <p>這是一封系統自動發送的確認信，您的專屬訂單編號 <strong>${finalOrderId}</strong> 已經被老闆接單，準備為您排單製作囉！</p>
                         <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
                         <p><strong>估計金額：</strong>$${Number(d['總金額']).toLocaleString('zh-TW')} <br>
                         <span style="font-size: 0.85em; color: #7f8c8d;">(此金額為送單時粗估，實際秤重與特殊要求等最終請以老闆報價為準)</span></p>
@@ -173,10 +178,10 @@ const PendingOrders = (() => {
                 });
             }
 
-            showToast(`訂單 ${finalOrderId} 核准成功！`, 'success');
+            showToast(`訂單 ${finalOrderId} 接單成功！`, 'success');
             query();
         } catch (e) {
-            showToast('核准失敗: ' + e.message, 'error');
+            showToast('接單失敗: ' + e.message, 'error');
         } finally {
             showLoading(false);
         }
