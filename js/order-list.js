@@ -410,9 +410,21 @@ const OrderList = (() => {
                 if (!qtyStr && (k.includes('數量'))) qtyStr = line[k];
                 if (!note && (k.includes('說明') || k.includes('備註'))) note = line[k];
             });
+
+            // 重要：初始化 _isWeight 與單價資訊，確保後續 onQtyChange 運算正確
+            const menuItem = menuData.find(m => m['菜名'] === name);
+            if (menuItem) {
+                line._isWeight = String(menuItem['單價']).includes('*');
+                line._unitPriceStr = menuItem['單價'];
+                line._unitPrice = line._isWeight ? menuItem['單價'] : parseInt(menuItem['單價']) || 0;
+            } else {
+                line._isWeight = false;
+                line._unitPrice = 0;
+            }
+
             const qty = String(qtyStr).replace(/[^0-9.]/g, '') || '';
             const date = line['預計出貨日期 (A)'] || '';
-            const isWeight = String(line._unitPriceStr || '').includes('*');
+            const isWeight = line._isWeight;
 
             let statusHtml = '';
             if (isPending) {
@@ -603,22 +615,27 @@ const OrderList = (() => {
         let total = 0;
         detailLines.forEach((l, idx) => {
             if (l._deleted) return;
-            const isPending = l['排程狀態'] === '待排程';
-            let sub = parseInt(l['小計']) || parseInt(l['小計價格']) || 0;
+            
+            let sub = 0;
             const subEl = document.getElementById(`od-subtotal-${idx}`);
             if (subEl) {
-                // 非待排程的列現在是 input 元素，直接讀 value
                 const rawVal = subEl.value !== undefined && subEl.tagName === 'INPUT'
                     ? subEl.value
                     : (subEl.dataset.val || subEl.textContent);
                 const cleanVal = String(rawVal).replace(/[$,\s]/g, '');
-                if (!isNaN(parseInt(cleanVal))) sub = parseInt(cleanVal);
+                sub = parseFloat(cleanVal) || 0;
+            } else {
+                // 回報物件中的小計值
+                const val = getValueByKeyword(l, ['小計', '價格']);
+                sub = parseFloat(String(val).replace(/[$,\s]/g, '')) || 0;
             }
             total += sub;
         });
 
         const totalEl = document.getElementById('od-total');
-        if (totalEl) totalEl.textContent = `$${total.toLocaleString('zh-TW')}`;
+        if (totalEl) {
+            totalEl.textContent = `$${Math.round(total).toLocaleString('zh-TW')}`;
+        }
         return total;
     }
 
@@ -752,7 +769,8 @@ const OrderList = (() => {
                 showToast('所有明細均已刪除，該訂單已被移除', 'success');
             } else {
                 const orderHeaders = Object.keys(order).filter(k => !k.startsWith('_'));
-                const orderRow = orderHeaders.map(k => k === '訂單金額' ? newTotal : order[k] || '');
+                // 修正：動態匹配「金額」關鍵字，不再寫死字串
+                const orderRow = orderHeaders.map(k => k.includes('金額') ? newTotal : order[k] || '');
 
                 const tasks = [
                     Sheets.updateById(CONFIG.SHEETS.ORDER_MAIN, order['ID'], orderRow)
