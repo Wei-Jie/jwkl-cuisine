@@ -638,7 +638,12 @@ const OrderList = (() => {
                 <p>親愛的 <strong>${order['顧客名稱']}</strong> 您好，</p>
                 <p>這是一封系統自動發送的信件，您的專屬訂單 <strong>${order['訂單編號']}</strong> 已經全部製作完成！可以跟我們聯繫安排取貨囉！</p>
                 <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
-                <p><strong>完成項目明細：</strong><br>${itemsText}</p>
+                <p><strong>製作完成品項：</strong><br>
+                ${itemsText}
+                </p>
+                <p style="font-size: 1.1rem; color: #e67e22; font-weight: bold; border-top: 1px solid #eee; padding-top: 10px;">
+                    💰 訂單總金額：$${Number(order['訂單金額'] || 0).toLocaleString('zh-TW')}
+                </p>
                 <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
                 <p>接下來煩請您透過我們先前聯繫的管道（Instagram / LINE 或電話），與老闆確認最終的交貨與付款事宜。</p>
                 <p>感謝您的耐心等候，希望您會喜歡這次為您悉心準備的美味！</p>
