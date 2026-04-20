@@ -313,10 +313,15 @@ const OrderList = (() => {
                 // 判斷是否由非完成狀態變成已完成，且有填信箱
                 if (order._computedStatus !== '已完成' && order._computedStatus !== '已出貨' && newStatus === '已完成' && order['Email']) {
                     const itemsText = scheduleLines.map(s => {
-                        // 優先找品項，避開「名稱」以免抓到顧客名稱
                         const name = getValueByKeyword(s, ['品項', '商品名稱']);
                         const qty = getValueByKeyword(s, ['數量', 'qty']);
-                        return `✔️ ${name} x${qty}`;
+                        
+                        // 判別是否為秤重商品
+                        const menuItem = menuData.find(m => m['菜名'] === name);
+                        const isWeight = menuItem && String(menuItem['單價']).includes('*');
+                        const unit = isWeight ? '(g)' : '';
+                        
+                        return `✔️ ${name} x${qty}${unit}`;
                     }).join('<br>');
                     emailPromises.push(sendCompletionEmail(order, itemsText));
                 }
@@ -763,7 +768,13 @@ const OrderList = (() => {
                     const itemsText = detailLines.filter(l => !l._deleted).map(l => {
                         const name = getValueByKeyword(l, ['品項', '商品名稱']);
                         const qty = getValueByKeyword(l, ['數量', 'qty']);
-                        return `✔️ ${name} x${qty}`;
+                        
+                        // 判別是否為秤重商品
+                        const menuItem = menuData.find(m => m['菜名'] === name);
+                        const isWeight = menuItem && String(menuItem['單價']).includes('*');
+                        const unit = isWeight ? '(g)' : '';
+                        
+                        return `✔️ ${name} x${qty}${unit}`;
                     }).join('<br>');
                     await sendCompletionEmail(order, itemsText);
                 }
