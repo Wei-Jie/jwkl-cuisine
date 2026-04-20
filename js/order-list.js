@@ -238,8 +238,10 @@ const OrderList = (() => {
 
         const summaryMap = {};
         pendingSchedules.forEach(s => {
-            const name = s['品項'] || s['品項名稱'];
-            const qty = parseFloat(s['數量'] || s['訂購數量']) || 0;
+            // 使用動態關鍵字偵測
+            const name = getValueByKeyword(s, ['品項', '名稱']) || '';
+            const rawQty = getValueByKeyword(s, ['數量', 'qty']) || 0;
+            const qty = parseFloat(rawQty) || 0;
             if (name) {
                 summaryMap[name] = (summaryMap[name] || 0) + qty;
             }
@@ -310,7 +312,11 @@ const OrderList = (() => {
 
                 // 判斷是否由非完成狀態變成已完成，且有填信箱
                 if (order._computedStatus !== '已完成' && order._computedStatus !== '已出貨' && newStatus === '已完成' && order['Email']) {
-                    const itemsText = scheduleLines.map(s => `✔️ ${s['品項'] || s['品項名稱']} x${s['訂購數量'] || s['數量']}`).join('<br>');
+                    const itemsText = scheduleLines.map(s => {
+                        const name = getValueByKeyword(s, ['品項', '名稱']);
+                        const qty = getValueByKeyword(s, ['數量', 'qty']);
+                        return `✔️ ${name} x${qty}`;
+                    }).join('<br>');
                     emailPromises.push(sendCompletionEmail(order, itemsText));
                 }
 
@@ -753,7 +759,11 @@ const OrderList = (() => {
 
                 const wasCompleted = order._computedStatus === '已完成' || order._computedStatus === '已出貨';
                 if (!wasCompleted && isNowCompleted && order['Email']) {
-                    const itemsText = detailLines.filter(l => !l._deleted).map(l => `✔️ ${l['品項名稱'] || l['品項']} x${l['數量']}`).join('<br>');
+                    const itemsText = detailLines.filter(l => !l._deleted).map(l => {
+                        const name = getValueByKeyword(l, ['品項', '名稱']);
+                        const qty = getValueByKeyword(l, ['數量', 'qty']);
+                        return `✔️ ${name} x${qty}`;
+                    }).join('<br>');
                     await sendCompletionEmail(order, itemsText);
                 }
             }

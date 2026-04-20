@@ -160,7 +160,7 @@ const PendingOrders = (() => {
                         <p><strong>估計金額：</strong>${d['總金額']} <br>
                         <span style="font-size: 0.85em; color: #7f8c8d;">(此金額為送單時粗估，實際秤重與特殊要求等最終請以老闆報價為準)</span></p>
                         <p><strong>您的訂購內容：</strong><br>
-                        ${items.map(it => `🍽️ ${it.name} <span style="color:#e67e22">x${it.qty}</span>`).join('<br>')}
+                        ${items.map(it => `🍽️ ${it.name} <span style="color:#e67e22">x${it.qty || it.數量 || 0}</span>`).join('<br>')}
                         </p>
                         ${d['備註'] ? `<p><strong>特別備註：</strong>${d['備註']}</p>` : ''}
                         <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">

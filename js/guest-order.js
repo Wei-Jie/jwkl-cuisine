@@ -83,10 +83,13 @@ const GuestOrder = (() => {
 
     async function submit() {
         const name = document.getElementById('cust-name').value.trim();
-        const phoneInput = document.getElementById('cust-phone').value.trim();
+        const rawPhone = document.getElementById('cust-phone').value.trim();
         const sns = document.getElementById('cust-sns').value.trim();
         const email = document.getElementById('cust-email').value.trim();
         const note = document.getElementById('order-note').value.trim();
+        
+        // 電話自動去除 - 符號
+        const phoneInput = rawPhone.replace(/-/g, '');
         
         // 1. 基礎必填驗證
         if (!name || !phoneInput || !sns) {
@@ -108,10 +111,13 @@ const GuestOrder = (() => {
             return;
         }
 
-        // 4. Email 驗證
-        if (email && !email.includes('@')) {
-            alert('Email 格式不正確，必須包含 @ 符號。');
-            return;
+        // 4. Email 驗證 (一定要有 @，且不允許出現兩個以上的 @)
+        if (email) {
+            const atCount = email.split('@').length - 1;
+            if (atCount !== 1) {
+                alert('Email 格式不正確，必須且只能包含一個 @ 符號。');
+                return;
+            }
         }
 
         const dateObj = new Date();
@@ -153,7 +159,7 @@ const GuestOrder = (() => {
                     name,
                     JSON.stringify(items),
                     document.getElementById('summary-total').textContent, // 包含待確認文字
-                    note,
+                    normalizeNote(note),
                     '待確認',
                     phone,
                     sns,

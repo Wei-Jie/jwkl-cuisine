@@ -136,6 +136,28 @@ function debounce(fn, delay = 300) {
     };
 }
 
+/**
+ * 關鍵字偵測取值：解決試算表標題微差 (如「數量」vs「訂購數量」)
+ * @param {Object} obj - rowsToObjects 轉出的物件
+ * @param {string[]} keywords - 關鍵字陣列 (如 ['數量', 'qty'])
+ */
+function getValueByKeyword(obj, keywords) {
+    if (!obj) return '';
+    const keys = Object.keys(obj);
+    for (const k of keys) {
+        if (keywords.some(kw => k.includes(kw))) {
+            return obj[k];
+        }
+    }
+    return '';
+}
+
+/** 確保備註內容被視為單一字串，避免特殊字元造成解析錯誤 */
+function normalizeNote(str) {
+    if (!str) return '';
+    return String(str).replace(/[\r\n]/g, ' ').trim();
+}
+
 /** HTML 字串安全跳脫，防止 XSS 攻擊 */
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
