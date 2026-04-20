@@ -170,6 +170,9 @@ const OrderList = (() => {
 
         if (!queryResult.length) {
             tbody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">查無資料</td></tr>`;
+            // 清理彙整表
+            const existingSummary = document.getElementById('ol-summary-wrap');
+            if (existingSummary) existingSummary.remove();
             return;
         }
 
@@ -215,6 +218,66 @@ const OrderList = (() => {
                 <td><input type="date" class="form-control form-control-sm pay-date" data-idx="${idx}" value="${payDate}"></td>
             </tr>`;
         }).join('');
+
+        renderSummaryTable();
+    }
+
+    function renderSummaryTable() {
+        // 1. 移除舊有的彙整表
+        const oldSummary = document.getElementById('ol-summary-wrap');
+        if (oldSummary) oldSummary.remove();
+
+        // 2. 彙整「待排程」的所有商品 (從全域 allSchedule 中，屬於目前查詢結果中訂單的項目)
+        const currentOrderIds = new Set(queryResult.map(o => o['訂單編號']));
+        const pendingSchedules = allSchedule.filter(s => 
+            s['排程狀態'] === CONFIG.STATUS.PENDING && 
+            currentOrderIds.has(s['訂單編號'])
+        );
+
+        if (!pendingSchedules.length) return;
+
+        const summaryMap = {};
+        pendingSchedules.forEach(s => {
+            const name = s['品項'] || s['品項名稱'];
+            const qty = parseFloat(s['數量'] || s['訂購數量']) || 0;
+            if (name) {
+                summaryMap[name] = (summaryMap[name] || 0) + qty;
+            }
+        });
+
+        const sortedNames = Object.keys(summaryMap).sort();
+        
+        // 3. 建立彙整表格 UI
+        const summaryWrap = document.createElement('div');
+        summaryWrap.id = 'ol-summary-wrap';
+        summaryWrap.className = 'mt-24';
+        summaryWrap.innerHTML = `
+            <div class="card-header-row" style="margin-bottom: 12px;">
+                <h3 style="font-size: 1.1rem; color: var(--color-primary);">📊 待製作商品彙整 (待排程)</h3>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table" style="max-width: 500px;">
+                    <thead style="background: var(--color-bg-alt);">
+                        <tr>
+                            <th style="text-align: left;">品項</th>
+                            <th style="width: 150px; text-align: right;">待製作數量</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sortedNames.map(name => `
+                            <tr>
+                                <td class="fw-medium">${escapeHtml(name)}</td>
+                                <td style="text-align: right; color: var(--color-accent); font-weight: bold;">
+                                    ${summaryMap[name].toLocaleString('zh-TW')}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        document.getElementById('ol-result-wrap').appendChild(summaryWrap);
     }
 
     function toggleAll(checked) {

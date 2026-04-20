@@ -68,7 +68,6 @@ const PendingOrders = (() => {
 
             return `
                 <tr>
-                    <td class="text-sm">${escapeHtml(d['提交時間'])}</td>
                     <td>${escapeHtml(d['訂單日期'])}</td>
                     <td class="fw-medium">${escapeHtml(d['顧客名稱'])}</td>
                     <td class="text-sm">
@@ -127,6 +126,8 @@ const PendingOrders = (() => {
             });
 
             // 2. 全部寫入
+            const formattedPhone = (d['電話'] && String(d['電話']).startsWith('0')) ? "'" + String(d['電話']) : (String(d['電話'] || ''));
+            
             await Promise.all([
                 Sheets.appendRows(CONFIG.SHEETS.ORDER_MAIN, [[
                     generateUUID(),
@@ -135,15 +136,16 @@ const PendingOrders = (() => {
                     d['總金額'],
                     d['顧客名稱'],
                     '',
-                    (d['電話'] && String(d['電話']).startsWith('0')) ? "'" + String(d['電話']) : (String(d['電話'] || '')),
+                    formattedPhone,
                     d['SNS'] || '',
                     d['Email'] || ''
                 ]]),
                 Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, scheduleItems),
-                // 3. 更新原預約單狀態
+                // 3. 更新原預約單狀態 (新結構已移除提交時間)
                 Sheets.updateById(CONFIG.SHEETS.PENDING, d['ID'], [
-                    d['ID'], finalOrderId, d['提交時間'], d['訂單日期'], d['顧客名稱'],
-                    d['品項明細'], d['總金額'], d['備註'], '已轉正', d['電話'], d['SNS'], d['Email']
+                    d['ID'], finalOrderId, d['訂單日期'], d['顧客名稱'],
+                    d['品項明細'], d['總金額'], d['備註'], '已轉正', 
+                    formattedPhone, d['SNS'] || '', d['Email'] || ''
                 ])
             ]);
 
@@ -155,7 +157,7 @@ const PendingOrders = (() => {
                         <p>親愛的 <strong>${d['顧客名稱']}</strong> 您好，</p>
                         <p>這是一封系統自動發送的確認信，您的專屬訂單編號 <strong>${finalOrderId}</strong> 已經被老闆接單，準備為您排單製作囉！</p>
                         <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
-                        <p><strong>估計金額：</strong>$${Number(d['總金額']).toLocaleString('zh-TW')} <br>
+                        <p><strong>估計金額：</strong>${d['總金額']} <br>
                         <span style="font-size: 0.85em; color: #7f8c8d;">(此金額為送單時粗估，實際秤重與特殊要求等最終請以老闆報價為準)</span></p>
                         <p><strong>您的訂購內容：</strong><br>
                         ${items.map(it => `🍽️ ${it.name} <span style="color:#e67e22">x${it.qty}</span>`).join('<br>')}
@@ -188,16 +190,22 @@ const PendingOrders = (() => {
 
     async function reject(idx) {
         const d = pendingData[idx];
-        const ok = await showConfirm('確定要刪除/拒絕此預約單嗎？');
+        const ok = await showConfirm(`確定要拒絕 ${d['顧客名稱']} 的預約單嗎？\n資料將會保留但狀態改為「已退回」。`);
         if (!ok) return;
 
         showLoading(true);
         try {
-            await Sheets.batchDeleteById(CONFIG.SHEETS.PENDING, [d['ID']]);
-            showToast('已刪除該預約選項', 'info');
+            const formattedPhone = (d['電話'] && String(d['電話']).startsWith('0')) ? "'" + String(d['電話']) : (String(d['電話'] || ''));
+            
+            await Sheets.updateById(CONFIG.SHEETS.PENDING, d['ID'], [
+                d['ID'], d['訂單編號'] || '', d['訂單日期'], d['顧客名稱'],
+                d['品項明細'], d['總金額'], d['備註'], '已退回', 
+                formattedPhone, d['SNS'] || '', d['Email'] || ''
+            ]);
+            showToast('已將該預約單設定為已退回', 'info');
             query();
         } catch (e) {
-            showToast('刪除失敗: ' + e.message, 'error');
+            showToast('更新失敗: ' + e.message, 'error');
         } finally {
             showLoading(false);
         }
