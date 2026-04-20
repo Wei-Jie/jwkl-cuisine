@@ -208,12 +208,11 @@ const OrderList = (() => {
                 </td>
                 <td>${o['訂單日期']}</td>
                 <td>${escapeHtml(o['顧客名稱'])}</td>
-                <td class="text-secondary text-sm" style="line-height: 1.4;">
-                    ${o['電話'] ? '📞 ' + escapeHtml(o['電話']) + '<br>' : ''}
+                <td>${o['電話'] ? '📞 ' + escapeHtml(o['電話']) + '<br>' : ''}
                     ${o['SNS'] ? '💬 ' + escapeHtml(o['SNS']) + '<br>' : ''}
                     ${o['Email'] ? '✉️ ' + escapeHtml(o['Email']) : ''}
                 </td>
-                <td>${o['訂單金額'] ? '$' + Number(o['訂單金額']).toLocaleString('zh-TW') : '-'}</td>
+                <td>${formatAmount(o['訂單金額'] || '-')}</td>
                 <td>${statusHtml}</td>
                 <td><input type="date" class="form-control form-control-sm pay-date" data-idx="${idx}" value="${payDate}"></td>
             </tr>`;
@@ -642,7 +641,7 @@ const OrderList = (() => {
                 ${itemsText}
                 </p>
                 <p style="font-size: 1.1rem; color: #e67e22; font-weight: bold; border-top: 1px solid #eee; padding-top: 10px;">
-                    💰 訂單總金額：$${Number(order['訂單金額'] || 0).toLocaleString('zh-TW')}
+                    💰 訂單總金額：${formatAmount(order['訂單金額'])}
                 </p>
                 <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
                 <p>接下來煩請您透過我們先前聯繫的管道（Instagram / LINE 或電話），與老闆確認最終的交貨與付款事宜。</p>
@@ -767,6 +766,9 @@ const OrderList = (() => {
 
                 await Promise.all(tasks);
                 showToast('明細更新成功！總金額已同步', 'success');
+
+                // 重要：在發信前，將最新計算的總金額同步回 order 物件
+                order['訂單金額'] = newTotal;
 
                 const wasCompleted = order._computedStatus === '已完成' || order._computedStatus === '已出貨';
                 if (!wasCompleted && isNowCompleted && order['Email']) {
