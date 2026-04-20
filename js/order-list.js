@@ -238,8 +238,8 @@ const OrderList = (() => {
 
         const summaryMap = {};
         pendingSchedules.forEach(s => {
-            // 使用動態關鍵字偵測
-            const name = getValueByKeyword(s, ['品項', '名稱']) || '';
+            // 使用動態關鍵字偵測，優先找「品項」，避開通用的「名稱」以免誤抓顧客
+            const name = getValueByKeyword(s, ['品項', '商品名稱']) || '';
             const rawQty = getValueByKeyword(s, ['數量', 'qty']) || 0;
             const qty = parseFloat(rawQty) || 0;
             if (name) {
@@ -313,7 +313,8 @@ const OrderList = (() => {
                 // 判斷是否由非完成狀態變成已完成，且有填信箱
                 if (order._computedStatus !== '已完成' && order._computedStatus !== '已出貨' && newStatus === '已完成' && order['Email']) {
                     const itemsText = scheduleLines.map(s => {
-                        const name = getValueByKeyword(s, ['品項', '名稱']);
+                        // 優先找品項，避開「名稱」以免抓到顧客名稱
+                        const name = getValueByKeyword(s, ['品項', '商品名稱']);
                         const qty = getValueByKeyword(s, ['數量', 'qty']);
                         return `✔️ ${name} x${qty}`;
                     }).join('<br>');
@@ -760,7 +761,7 @@ const OrderList = (() => {
                 const wasCompleted = order._computedStatus === '已完成' || order._computedStatus === '已出貨';
                 if (!wasCompleted && isNowCompleted && order['Email']) {
                     const itemsText = detailLines.filter(l => !l._deleted).map(l => {
-                        const name = getValueByKeyword(l, ['品項', '名稱']);
+                        const name = getValueByKeyword(l, ['品項', '商品名稱']);
                         const qty = getValueByKeyword(l, ['數量', 'qty']);
                         return `✔️ ${name} x${qty}`;
                     }).join('<br>');
