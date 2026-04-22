@@ -76,7 +76,7 @@ const PendingOrders = (() => {
                         ${d['Email'] ? `✉️ ${escapeHtml(d['Email'])}` : ''}
                         ${(!d['電話'] && !d['SNS'] && !d['Email']) ? '-' : ''}
                     </td>
-                    <td class="fw-bold text-accent">$${escapeHtml(d['總金額'])}</td>
+                    <td class="fw-bold text-accent">${formatAmount(d['總金額'])}</td>
                     <td class="text-sm">${itemsHtml}</td>
                     <td>
                         <div style="display:flex;gap:8px">
@@ -157,7 +157,7 @@ const PendingOrders = (() => {
                         <p>親愛的 <strong>${d['顧客名稱']}</strong> 您好，</p>
                         <p>這是一封系統自動發送的確認信，您的專屬訂單編號 <strong>${finalOrderId}</strong> 已經被老闆接單，準備為您排單製作囉！</p>
                         <hr style="border:0; border-top: 2px dashed #eee; margin:20px 0;">
-                        <p><strong>估計金額：</strong>${d['總金額']} <br>
+                        <p><strong>估計金額：</strong>${formatAmount(d['總金額'])} <br>
                         <span style="font-size: 0.85em; color: #7f8c8d;">(此金額為送單時粗估，實際秤重與特殊要求等最終請以老闆報價為準)</span></p>
                         <p><strong>您的訂購內容：</strong><br>
                         ${items.map(it => `🍽️ ${it.name} <span style="color:#e67e22">x${it.qty || it.數量 || 0}</span>`).join('<br>')}

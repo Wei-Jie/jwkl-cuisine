@@ -38,10 +38,26 @@ function todayInputStr() {
     return d.toISOString().slice(0, 10);
 }
 
-/** 格式化金額（加千分位） */
-function formatAmount(n) {
-    if (n === '' || n === null || n === undefined) return '';
-    return `$${Number(n).toLocaleString('zh-TW')}`;
+/** 格式化金額（加千分位），並容錯處理包含文字的欄位 */
+function formatAmount(val) {
+    if (val === '' || val === null || val === undefined) return '';
+    
+    // 移除 $ 與逗號
+    let str = String(val).replace(/[$,]/g, '');
+    
+    // 檢查是否包含「待確認」或「+」等文字描述
+    if (str.includes('+') || str.includes('待確認')) {
+        // 如果包含文字描述，則原樣呈現，但嘗試把最前面的數字做千分位
+        return String(val); 
+    }
+    
+    const num = parseFloat(str);
+    if (isNaN(num)) {
+        // 若無法解析為純數字，檢查是否已含 $
+        return String(val).startsWith('$') ? String(val) : `$${val}`;
+    }
+    
+    return `$${num.toLocaleString('zh-TW')}`;
 }
 
 /**
