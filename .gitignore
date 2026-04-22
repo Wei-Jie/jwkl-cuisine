@@ -1,0 +1,29 @@
+# === JWKL Cuisine 安全排除名單 ===
+
+# 1. 安全與技術規格 (不推送至 GitHub)
+doc/
+AISDLC/
+MAINTENANCE_GUIDE.md
+requiment.md
+nextPhase/
+nextPhase.zip
+types.d.ts
+
+# 2. 測試與本地腳本
+scratch/
+test_gas.js
+simulate.js
+test_backend.js
+
+# 3. 系統與編輯器環境
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.gemini/
+
+# 4. 備份與暫存
+*.log
+*.bak
+*.tmp
+*.zip

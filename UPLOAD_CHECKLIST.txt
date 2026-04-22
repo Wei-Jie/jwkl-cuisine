@@ -1,0 +1,35 @@
+# ✅ JWKL Cuisine v2.2.0 上傳前檢查清單
+
+在執行 `git push` 之前，請對照此清單確認：
+
+## 1. 代碼正確性
+- [ ] `js/config.js` 中的 `GAS_URL` 是否為最新的部署網址？
+- [ ] `Backend.gs` 是否已經在 Google Apps Script 中貼上、存檔並「重新部署」為新版本？
+- [ ] 是否已執行 `setupMailAuth()` 以開通寄信權限？
+
+## 2. 安全性檢查 (Git Protection)
+- [ ] `.gitignore` 檔案是否存在於專案根目錄？
+- [ ] 執行 `git status` 時，是否確認 **沒有** 出現以下路徑？
+    - `doc/` (系統規格書)
+    - `AISDLC/` (開發紀錄)
+    - `MAINTENANCE_GUIDE.md` (維護手冊)
+    - `scratch/` (測試腳本)
+    - `.gemini/` (AI 紀錄)
+
+## 3. GitHub 設定
+- [ ] 是否已在 GitHub 網頁上確認 Repository 名稱？
+- [ ] 是否已設定好 `git config --global` 使用者資訊？
+
+---
+
+## 🚀 第一次同步指令 (懶人包)
+按順序貼入終端機執行：
+
+git init
+git remote add origin [您的Repo網址]
+git fetch origin
+git checkout -b main
+git merge origin/main --allow-unrelated-histories
+git add .
+git commit -m "chore: 升級 v2.2.0 並啟動安全性排除過濾"
+git push -u origin main
