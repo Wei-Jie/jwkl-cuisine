@@ -1,7 +1,8 @@
 const GuestTrack = (() => {
     async function track() {
-        const orderId = document.getElementById('order-id').value.trim();
-        const rawPhone = document.getElementById('cust-phone').value.trim();
+        // 修正 ID 以對齊 track.html
+        const orderId = document.getElementById('track-id').value.trim();
+        const rawPhone = document.getElementById('track-phone').value.trim();
 
         if (!orderId || !rawPhone) {
             alert('請輸入訂單編號與聯絡電話');
@@ -25,31 +26,29 @@ const GuestTrack = (() => {
 
             const res = await Sheets.requestGAS(payload);
             
-            const resultDiv = document.getElementById('track-result');
-            const statusEl = document.getElementById('order-status');
+            const resultBox = document.getElementById('result-box');
+            const statusEl = document.getElementById('result-status');
             
             if (res.status === 'success') {
-                resultDiv.classList.remove('d-none');
-                statusEl.textContent = res.data.status;
+                resultBox.style.display = 'block';
+                statusEl.textContent = '目前狀態：' + res.data.status;
                 
-                // 根據狀態給予顏色
-                statusEl.className = 'status-badge';
-                if (res.data.status === '已接單') statusEl.classList.add('status-confirmed');
-                else if (res.data.status === '已完成') statusEl.classList.add('status-done');
-                else statusEl.classList.add('status-pending');
+                // 根據狀態給予顏色 (CSS class 需要存在於 style.css 或 HTML style 中)
+                statusEl.style.color = (res.data.status === '已接單' || res.data.status === '已完成') ? '#27ae60' : '#e67e22';
                 
             } else {
-                resultDiv.classList.add('d-none');
+                resultBox.style.display = 'none';
                 alert('查詢失敗：' + res.error);
             }
         } catch (e) {
+            console.error(e);
             alert('查詢發生錯誤，請稍後再試。');
         } finally {
             showLoading(false);
         }
     }
 
-    return { track };
+    return { query: track };
 })();
 
 function showLoading(visible) {
