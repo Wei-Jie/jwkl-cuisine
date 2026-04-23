@@ -1,186 +1,61 @@
-// ==============================
-// 工具函式
-// ==============================
+/**
+ * 通用工具函式 (v2.2.0 合併版)
+ */
 
-/** 格式化日期為 YYYY/M/D */
-function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    if (isNaN(d)) return dateStr;
-    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-/** 將 YYYY/M/D 轉換為 input[type=date] 用的 YYYY-MM-DD */
-function toInputDate(str) {
-    if (!str) return '';
-    const parts = str.split('/');
-    if (parts.length !== 3) return '';
-    return `${parts[0]}-${String(parts[1]).padStart(2, '0')}-${String(parts[2]).padStart(2, '0')}`;
-}
-
-/** 將 YYYY-MM-DD 轉回 YYYY/M/D */
-function fromInputDate(str) {
-    if (!str) return '';
-    const parts = str.split('-');
-    if (parts.length !== 3) return '';
-    return `${parts[0]}/${parseInt(parts[1])}/${parseInt(parts[2])}`;
-}
-
-/** 取得今日的 YYYY/M/D 字串 */
-function todayStr() {
-    const d = new Date();
-    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-/** 取得今日的 YYYY-MM-DD 字串（input 用） */
-function todayInputStr() {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-}
-
-/** 格式化金額（加千分位），並容錯處理包含文字的欄位 */
-function formatAmount(val) {
-    if (val === '' || val === null || val === undefined) return '';
-    
-    // 移除 $ 與逗號
-    let str = String(val).replace(/[$,]/g, '');
-    
-    // 檢查是否包含「待確認」或「+」等文字描述
-    if (str.includes('+') || str.includes('待確認')) {
-        // 如果包含文字描述，則原樣呈現，但嘗試把最前面的數字做千分位
-        return String(val); 
-    }
-    
-    const num = parseFloat(str);
-    if (isNaN(num)) {
-        // 若無法解析為純數字，檢查是否已含 $
-        return String(val).startsWith('$') ? String(val) : `$${val}`;
-    }
-    
-    return `$${num.toLocaleString('zh-TW')}`;
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
 }
 
 /**
- * 產生新訂單編號
- * 格式：YYMMDD + 4位序號
- * @param {string[]} existingIds - 既有訂單編號陣列
- * @param {Date} [date] - 指定日期，預設今日
+ * 將試算表 Rows 轉為物件陣列
+ * @param {Array[]} rows 
+ * @returns {Object[]}
  */
-function generateOrderId(existingIds, date) {
-    const d = date || new Date();
-    const yy = String(d.getFullYear()).slice(-2);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const prefix = `${yy}${mm}${dd}`;
-
-    let maxSeq = 0;
-    existingIds.forEach(id => {
-        if (id && String(id).startsWith(prefix)) {
-            const seq = parseInt(String(id).slice(6), 10);
-            if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
-        }
-    });
-    return `${prefix}${String(maxSeq + 1).padStart(4, '0')}`;
-}
-
-/** 產生隨機 UUID (v4) 以供軟刪除使用 */
-function generateUUID() {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
-    // Fallback for older browsers
-    return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c =>
-        (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-    );
-}
-function showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-    toast.textContent = message;
-    toast.className = `toast toast-${type} show`;
-    clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => toast.classList.remove('show'), 3500);
-}
-
-/** 顯示確認 Dialog，回傳 Promise<boolean> */
-function showConfirm(message) {
-    return new Promise(resolve => {
-        const modal = document.getElementById('confirmModal');
-        const msgEl = document.getElementById('confirmMessage');
-        const okBtn = document.getElementById('confirmOk');
-        const cancelBtn = document.getElementById('confirmCancel');
-
-        msgEl.textContent = message;
-        modal.classList.add('show');
-
-        const cleanup = () => {
-            okBtn.removeEventListener('click', onOk);
-            cancelBtn.removeEventListener('click', onCancel);
-            modal.classList.remove('show');
-        };
-        const onOk = () => { cleanup(); resolve(true); };
-        const onCancel = () => { cleanup(); resolve(false); };
-
-        okBtn.addEventListener('click', onOk);
-        cancelBtn.addEventListener('click', onCancel);
-    });
-}
-
-/** 顯示/隱藏 Loading */
-function showLoading(visible) {
-    const el = document.getElementById('loadingOverlay');
-    if (el) el.classList.toggle('show', visible);
-}
-
-/** 從陣列資料（含標題列）轉換為物件陣列，並附帶原始行號 */
 function rowsToObjects(rows) {
     if (!rows || rows.length < 2) return [];
     const headers = rows[0];
-    return rows.slice(1).map((row, i) => {
-        const obj = { _rowIndex: i + 2 }; // Sheets 1-indexed，第1列是標題
-        headers.forEach((h, j) => { obj[h] = row[j] || ''; });
+    return rows.slice(1).map(row => {
+        const obj = {};
+        headers.forEach((h, i) => {
+            let val = row[i];
+            // 處理日期格式
+            if (val instanceof Date) {
+                val = val.getFullYear() + '/' + 
+                      String(val.getMonth() + 1).padStart(2, '0') + '/' + 
+                      String(val.getDate()).padStart(2, '0');
+            }
+            // 處理為 null 或 undefined 的情況
+            obj[h] = (val === null || val === undefined) ? "" : val;
+        });
         return obj;
     });
 }
 
-/** 防抖函式 */
-function debounce(fn, delay = 300) {
-    let timer;
-    return (...args) => {
-        clearTimeout(timer);
-        timer = setTimeout(() => fn(...args), delay);
-    };
+/**
+ * 格式化備註內容，防止 XSS 與格式崩壞
+ */
+function normalizeNote(text) {
+    if (!text) return "";
+    return text.trim()
+        .replace(/\r\n/g, " ")
+        .replace(/\n/g, " ")
+        .replace(/\t/g, " ");
 }
 
 /**
- * 關鍵字偵測取值：解決試算表標題微差 (如「數量」vs「訂購數量」)
- * @param {Object} obj - rowsToObjects 轉出的物件
- * @param {string[]} keywords - 關鍵字陣列 (如 ['數量', 'qty'])
+ * 金額格式化
  */
-function getValueByKeyword(obj, keywords) {
-    if (!obj) return '';
-    const keys = Object.keys(obj);
-    for (const k of keys) {
-        if (keywords.some(kw => k.includes(kw))) {
-            return obj[k];
-        }
-    }
-    return '';
+function formatCurrency(amount) {
+    const num = parseFloat(String(amount).replace(/[$,]/g, '')) || 0;
+    return '$' + num.toLocaleString('zh-TW');
 }
 
-/** 確保備註內容被視為單一字串，避免特殊字元造成解析錯誤 */
-function normalizeNote(str) {
-    if (!str) return '';
-    return String(str).replace(/[\r\n]/g, ' ').trim();
-}
-
-/** HTML 字串安全跳脫，防止 XSS 攻擊 */
-function escapeHtml(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-         .replace(/&/g, "&amp;")
-         .replace(/</g, "&lt;")
-         .replace(/>/g, "&gt;")
-         .replace(/"/g, "&quot;")
-         .replace(/'/g, "&#039;");
+/**
+ * 延遲函式
+ */
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }

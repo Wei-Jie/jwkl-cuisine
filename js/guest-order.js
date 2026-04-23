@@ -148,9 +148,14 @@ const GuestOrder = (() => {
 
         showLoading(true);
         try {
+            const clientOrigin = (window.location && /^https?:\/\//.test(window.location.origin))
+                ? window.location.origin
+                : '';
+
             // 新結構: (ID, 訂單編號, 日期, 姓名, 明細, 金額, 備註, 狀態, 電話, SNS, Email)
             const payload = {
                 action: 'SUBMIT_CUSTOMER_ORDER',
+                clientOrigin: clientOrigin,
                 sheetName: CONFIG.SHEETS.PENDING,
                 values: [[
                     generateUUID(),

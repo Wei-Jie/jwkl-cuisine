@@ -19,8 +19,16 @@ function doPost(e) {
   var response = { status: 'success', data: null, error: null };
   const scriptProperties = PropertiesService.getScriptProperties();
   const ADMIN_TOKEN = scriptProperties.getProperty('ADMIN_TOKEN');
+  const REQUEST_ID = Utilities.getUuid();
 
-  // --- CORS 來源檢查 ---
+  // --- 安全相關常數 ---
+  const SECURITY_CONFIG = {
+    LOCK_WAIT_MS: 10000,
+    RATE_LIMIT_SUBMIT: { limit: 10, windowSec: 60 },
+    RATE_LIMIT_TRACK: { limit: 20, windowSec: 60 }
+  };
+
+  // --- CORS 來源白名單（軟防禦） ---
   const ALLOWED_ORIGINS = [
     'https://wei-jie.github.io',
     'http://localhost',
@@ -28,19 +36,26 @@ function doPost(e) {
   ];
 
   try {
-    // 檢查 Origin (若瀏覽器有提供)
-    var origin = (e && e.parameter && e.parameter.origin) || ""; 
-    // 注意：GAS 的 e.postData 往往拿不到完整的 Origin Header， 
-    // 這部分作為額外的軟防禦，主要仍依賴後端的 token 與限流保護。
+    if (!e || !e.postData || !e.postData.contents) {
+      throw knownError("No payload received");
+    }
+
     var payload = JSON.parse(e.postData.contents);
     var action = payload.action;
     var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+    // 注意：GAS 通常無法穩定取得真正 Origin Header，這裡使用客戶端回傳值作為軟防禦
+    var reqOrigin = payload.clientOrigin || (e && e.parameter && e.parameter.origin) || '';
+    if (reqOrigin && !isAllowedOrigin(reqOrigin, ALLOWED_ORIGINS)) {
+      throw knownError('【拒絕存取】來源未授權');
+    }
 
     // 建立上下文物件以便傳遞常用變數
     var ctx = {
       ADMIN_TOKEN: ADMIN_TOKEN,
       LINE_ACCESS_TOKEN: scriptProperties.getProperty('LINE_ACCESS_TOKEN'),
-      LINE_USER_ID: scriptProperties.getProperty('LINE_USER_ID')
+      LINE_USER_ID: scriptProperties.getProperty('LINE_USER_ID'),
+      SECURITY_CONFIG: SECURITY_CONFIG
     };
 
     // --- 路由與分發 ---
@@ -52,10 +67,9 @@ function doPost(e) {
         response.data = handleOrderSubmit(payload, ss, ctx);
         break;
       case 'TRACK_ORDER':
-        response.data = handleOrderTrack(payload, ss);
+        response.data = handleOrderTrack(payload, ss, ctx);
         break;
       case 'QUERY':
-        // 客戶端讀取菜單是公開的，其餘需 token
         if (payload.sheetName !== '菜單') {
           verifyAdmin(payload.token, ctx.ADMIN_TOKEN);
         }
@@ -78,12 +92,16 @@ function doPost(e) {
 
   } catch (error) {
     response.status = 'error';
-    response.error = error.toString();
-    Logger.log("Error in doPost: " + error.toString());
+    var isKnownError = error && error.name === 'KnownError';
+    // 已知錯誤回傳明確訊息；未知錯誤才收斂
+    response.error = isKnownError ? error.message : "系統忙碌中，請稍後再試。";
+    response.errorType = isKnownError ? 'known' : 'unknown';
+    response.requestId = REQUEST_ID;
+    Logger.log("Error in doPost [" + REQUEST_ID + "]: " + error.toString());
     
-    // P2: 自動將嚴重錯誤記錄到試算表
+    // 自動將嚴重錯誤記錄到試算表
     try {
-      logErrorToSheet(error.toString(), (payload && payload.action) || 'unknown');
+      logErrorToSheet("[" + REQUEST_ID + "] " + error.toString(), (payload && payload.action) || 'unknown');
     } catch (e) {
       Logger.log("Failed to log error to sheet: " + e.toString());
     }
@@ -95,8 +113,17 @@ function doPost(e) {
 // --- Action Handlers ---
 
 function handleOrderSubmit(payload, ss, ctx) {
-  var phone = payload.phone || "unknown";
-  assert(checkRateLimit('submit:' + phone, 10, 60), '請稍後再試，每分鐘送單次數過多。');
+  validateSubmitPayload(payload);
+  var row = payload.values[0];
+  var phone = normalizePhone(payload.phone || row[8] || '');
+  assert(
+    checkRateLimit(
+      'submit:' + phone,
+      ctx.SECURITY_CONFIG.RATE_LIMIT_SUBMIT.limit,
+      ctx.SECURITY_CONFIG.RATE_LIMIT_SUBMIT.windowSec
+    ),
+    '請稍後再試，每分鐘送單次數過多。'
+  );
   
   var sheet = ss.getSheetByName('客戶預約單');
   var values = sanitizeData(payload.values);
@@ -149,10 +176,10 @@ function handleOrderSubmit(payload, ss, ctx) {
     sendLinePush(ctx.LINE_ACCESS_TOKEN, ctx.LINE_USER_ID, msg);
 
     return { orderId: newOrderId };
-  });
+  }, ctx.SECURITY_CONFIG.LOCK_WAIT_MS);
 }
 
-function handleOrderTrack(payload, ss) {
+function handleOrderTrack(payload, ss, ctx) {
   var targetPhone = payload.phone;
   var targetOrderId = payload.orderId;
   assert(targetPhone && targetOrderId, '請提供電話與訂單編號');
@@ -161,14 +188,22 @@ function handleOrderTrack(payload, ss) {
   var cleanPhone = normalizePhone(targetPhone);
   assert(/^09\d{8}$/.test(cleanPhone), '電話格式不正確，應為 09 開頭的 10 位數字');
 
-  assert(checkRateLimit('track:' + cleanPhone, 20, 60), '請稍後再試，查詢次數過多。');
+  assert(
+    checkRateLimit(
+      'track:' + cleanPhone,
+      ctx.SECURITY_CONFIG.RATE_LIMIT_TRACK.limit,
+      ctx.SECURITY_CONFIG.RATE_LIMIT_TRACK.windowSec
+    ),
+    '請稍後再試，查詢次數過多。'
+  );
 
   var found = searchOrder(ss, '訂單主檔', targetOrderId, targetPhone) || 
               searchOrder(ss, '客戶預約單', targetOrderId, targetPhone);
   
-  if (!found) throw new Error('查無此訂單，請確認您的電話或訂單編號是否正確。');
+  if (!found) throw knownError('查無此訂單，請確認您的電話或訂單編號是否正確。');
   return { status: found };
 }
+
 
 function handleQuery(payload, ss) {
   var sheet = ss.getSheetByName(payload.sheetName);
@@ -219,7 +254,7 @@ function handleEmailSend(payload) {
 
 function verifyAdmin(token, adminToken) {
   if (!token || token !== adminToken) {
-    throw new Error("【拒絕存取】未授權的操作，請重新登入。");
+    throw knownError("【拒絕存取】未授權的操作，請重新登入。");
   }
 }
 
@@ -311,15 +346,17 @@ function phoneEquals(a, b) {
   return normalizePhone(a) === normalizePhone(b);
 }
 
-function withScriptLock(fn) {
+function withScriptLock(fn, waitMs) {
   var lock = LockService.getScriptLock();
+  var locked = false;
   try {
-    lock.waitLock(10000);
+    lock.waitLock(waitMs || 10000);
+    locked = true;
     return fn();
   } catch (e) {
-    throw new Error("系統繁忙中，請稍後再試 (Lock timeout)");
+    throw knownError("系統繁忙中，請稍後再試 (Lock timeout)");
   } finally {
-    lock.releaseLock();
+    if (locked) lock.releaseLock();
   }
 }
 
@@ -333,7 +370,52 @@ function checkRateLimit(key, limit, windowSec) {
 }
 
 function assert(condition, msg) {
-  if (!condition) throw new Error(msg);
+  if (!condition) throw knownError(msg);
+}
+
+function knownError(msg) {
+  var err = new Error(msg);
+  err.name = 'KnownError';
+  return err;
+}
+
+function isAllowedOrigin(origin, allowedOrigins) {
+  var o = normalizeOrigin(origin);
+  if (!o) return false;
+  for (var i = 0; i < allowedOrigins.length; i++) {
+    if (o === normalizeOrigin(allowedOrigins[i])) return true;
+  }
+  return false;
+}
+
+function normalizeOrigin(value) {
+  try {
+    return new URL(String(value)).origin.toLowerCase();
+  } catch (e) {
+    return '';
+  }
+}
+
+function validateSubmitPayload(payload) {
+  assert(payload && payload.values && payload.values.length > 0, '缺少送單資料');
+  var row = payload.values[0];
+  assert(row && row.length >= 11, '送單資料欄位不足');
+
+  var customer = String(row[3] || '').trim();
+  var rawPhone = row[8] || '';
+  var itemsRaw = row[4] || '[]';
+  var phone = normalizePhone(rawPhone);
+
+  assert(customer, '顧客姓名不可為空');
+  assert(/^09\d{8}$/.test(phone), '電話格式錯誤，應為 09 開頭的 10 位數字');
+
+  var items = [];
+  try {
+    items = JSON.parse(itemsRaw);
+  } catch (e) {
+    throw knownError('品項格式錯誤');
+  }
+  assert(items && items.length > 0, '至少需要一個品項');
 }
 
 function sanitizeData(dataArray) {
