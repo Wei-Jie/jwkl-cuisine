@@ -24,11 +24,11 @@ const GuestOrder = (() => {
         const div = document.createElement('div');
         div.className = 'item-row';
         div.id = `item-row-${id}`;
-        
+
         // 依照分類分組
         const categories = [...new Set(menuData.map(m => m['分類']))];
         let optionsHtml = `<option value="">選擇品項</option>`;
-        
+
         categories.forEach(cat => {
             const items = menuData.filter(m => m['分類'] === cat);
             optionsHtml += `<optgroup label="${cat}">`;
@@ -38,7 +38,7 @@ const GuestOrder = (() => {
             });
             optionsHtml += `</optgroup>`;
         });
-        
+
         div.innerHTML = `
             <select class="form-control form-control-sm" id="item-name-${id}" onchange="GuestOrder.updateTotal()">
                 ${optionsHtml}
@@ -72,7 +72,7 @@ const GuestOrder = (() => {
                 }
             }
         });
-        
+
         const totalText = total.toLocaleString('zh-TW');
         if (hasWeightItem) {
             document.getElementById('summary-total').textContent = `$${totalText} + 秤重商品金額(待確認)`;
@@ -87,10 +87,10 @@ const GuestOrder = (() => {
         const sns = document.getElementById('cust-sns').value.trim();
         const email = document.getElementById('cust-email').value.trim();
         const note = document.getElementById('order-note').value.trim();
-        
+
         // 電話自動去除 - 符號
         const phoneInput = rawPhone.replace(/-/g, '');
-        
+
         // 1. 基礎必填驗證
         if (!name || !phoneInput || !sns) {
             alert('請填寫完整資訊（姓名、電話、社群帳號）。');
@@ -122,7 +122,7 @@ const GuestOrder = (() => {
 
         const dateObj = new Date();
         const date = `${dateObj.getFullYear()}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${String(dateObj.getDate()).padStart(2, '0')}`;
-        
+
         const phone = "'" + phoneInput; // 強制轉字串避免試算表去零
 
         const items = [];
@@ -132,7 +132,7 @@ const GuestOrder = (() => {
             const itemName = document.getElementById(`item-name-${id}`).value;
             const qtyInput = document.getElementById(`item-qty-${id}`).value;
             const qty = parseInt(qtyInput) || 0;
-            
+
             if (itemName && qty > 0) {
                 items.push({ name: itemName, qty: qty });
             }

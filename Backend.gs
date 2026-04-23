@@ -46,8 +46,14 @@ function doPost(e) {
 
     // 注意：GAS 通常無法穩定取得真正 Origin Header，這裡使用客戶端回傳值作為軟防禦
     var reqOrigin = payload.clientOrigin || (e && e.parameter && e.parameter.origin) || '';
-    if (reqOrigin && !isAllowedOrigin(reqOrigin, ALLOWED_ORIGINS)) {
-      throw knownError('【拒絕存取】來源未授權');
+    
+    // 放寬檢查：只要來源包含白名單中的關鍵網址即可
+    var isAllowed = !reqOrigin || ALLOWED_ORIGINS.some(function(o) {
+      return reqOrigin.toLowerCase().indexOf(o.toLowerCase()) !== -1;
+    });
+
+    if (!isAllowed) {
+      throw knownError('【拒絕存取】來源未授權: ' + reqOrigin);
     }
 
     // 建立上下文物件以便傳遞常用變數
