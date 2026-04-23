@@ -21,14 +21,21 @@ const OrderNew = (() => {
     async function renderPage() {
         const page = document.getElementById('page-order-new');
 
-        // 取得今日已有的訂單編號，產生新編號
+        // 取得今日已有的訂單編號，產生新編號 (需同時檢查主檔與預約單)
         let newOrderId = '';
         try {
-            const rows = await Sheets.getSheet(CONFIG.SHEETS.ORDER_MAIN);
-            const orders = rowsToObjects(rows);
-            const ids = orders.map(o => o['訂單編號']);
-            newOrderId = generateOrderId(ids);
+            const [mainRows, pendingRows] = await Promise.all([
+                Sheets.getSheet(CONFIG.SHEETS.ORDER_MAIN),
+                Sheets.getSheet(CONFIG.SHEETS.PENDING)
+            ]);
+            
+            const mainIds = rowsToObjects(mainRows).map(o => o['訂單編號'] || o['編號']);
+            const pendingIds = rowsToObjects(pendingRows).map(o => o['訂單編號'] || o['編號']);
+            
+            const allIds = [...new Set([...mainIds, ...pendingIds])];
+            newOrderId = generateOrderId(allIds);
         } catch (e) {
+            console.error('取單號失敗:', e);
             newOrderId = generateOrderId([]);
         }
 
