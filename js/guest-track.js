@@ -1,57 +1,65 @@
 const GuestTrack = (() => {
-    async function track() {
-        // 修正 ID 以對齊 track.html
+
+    function showLoading(visible) {
+        const el = document.getElementById('loading');
+        if (el) el.style.display = visible ? 'flex' : 'none';
+    }
+
+    async function query() {
+        const phone = document.getElementById('track-phone').value.trim();
         const orderId = document.getElementById('track-id').value.trim();
-        const rawPhone = document.getElementById('track-phone').value.trim();
 
-        if (!orderId || !rawPhone) {
-            alert('請輸入訂單編號與聯絡電話');
-            return;
-        }
-
-        // 自動過濾電話中的連字號或其他非數字字元 (容錯處理)
-        const cleanPhone = rawPhone.replace(/\D/g, '');
-        if (!/^09\d{8}$/.test(cleanPhone)) {
-            alert('電話格式不正確，應為 09 開頭的 10 位數字');
+        if (!phone || !orderId) {
+            alert('請完整輸入聯絡電話與訂單編號。');
             return;
         }
 
         showLoading(true);
+        const resultBox = document.getElementById('result-box');
+        resultBox.style.display = 'none';
+
         try {
+            const clientOrigin = (window.location && /^https?:\/\//.test(window.location.origin))
+                ? window.location.origin
+                : '';
+
             const payload = {
                 action: 'TRACK_ORDER',
-                orderId: orderId,
-                phone: cleanPhone
+                clientOrigin: clientOrigin,
+                phone: phone,
+                orderId: orderId
             };
-
             const res = await Sheets.requestGAS(payload);
             
-            const resultBox = document.getElementById('result-box');
-            const statusEl = document.getElementById('result-status');
-            
             if (res.status === 'success') {
+                const statusStr = res.data.status;
+                const statusEl = document.getElementById('result-status');
+                const msgEl = document.getElementById('result-msg');
+                
                 resultBox.style.display = 'block';
-                statusEl.textContent = '目前狀態：' + res.data.status;
+                // 防禦性渲染：就算資料庫寫著舊版的待審核，對客人依舊顯示待確認
+                const displayStatus = statusStr === '待審核' ? '待確認' : statusStr;
+                statusEl.textContent = `狀態：${displayStatus}`;
                 
-                // 根據狀態給予顏色 (CSS class 需要存在於 style.css 或 HTML style 中)
-                statusEl.style.color = (res.data.status === '已接單' || res.data.status === '已完成') ? '#27ae60' : '#e67e22';
-                
+                if (statusStr === '已接單') {
+                    statusEl.style.color = '#27ae60';
+                    msgEl.innerHTML = '您的預約已獲老闆確認！<br><br>請關注小灶私廚發出的 Email，當製作完成會發信通知您。';
+                } else if (statusStr === '待確認' || statusStr === '待審核') {
+                    statusEl.style.color = '#e67e22';
+                    msgEl.innerHTML = '您的訂單正在等待老闆確認中，請稍候。<br>若有急需，可透過 IG 或 LINE 聯繫老闆。';
+                } else {
+                    statusEl.style.color = '#2c3e50';
+                    msgEl.innerHTML = '請直接透過 Email 或 IG 關注進一步的消息。';
+                }
             } else {
-                resultBox.style.display = 'none';
-                alert('查詢失敗：' + res.error);
+                throw new Error(res.error);
             }
         } catch (e) {
-            console.error(e);
-            alert('查詢發生錯誤，請稍後再試。');
+            alert('查詢失敗：' + e.message);
         } finally {
             showLoading(false);
         }
     }
 
-    return { query: track };
+    return { query };
 })();
-
-function showLoading(visible) {
-    const el = document.getElementById('loading');
-    if (el) el.style.display = visible ? 'flex' : 'none';
-}
