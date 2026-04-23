@@ -128,8 +128,8 @@ function showConfirm(message) {
 
 /** 顯示/隱藏 Loading */
 function showLoading(visible) {
-    const el = document.getElementById('loadingOverlay');
-    if (el) el.classList.toggle('show', visible);
+    const el = document.getElementById('loading');
+    if (el) el.style.display = visible ? 'flex' : 'none';
 }
 
 /** 從陣列資料（含標題列）轉換為物件陣列，並附帶原始行號 */
