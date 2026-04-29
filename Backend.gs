@@ -136,29 +136,13 @@ function handleOrderSubmit(payload, ss, ctx) {
   assert(values && values.length > 0, "無效的訂單資料");
 
   return withScriptLock(function() {
-    var tzDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
-    var yyStr = String(tzDate.getFullYear());
-    var prefix = yyStr.slice(-2) + ("0" + (tzDate.getMonth() + 1)).slice(-2) + ("0" + tzDate.getDate()).slice(-2);
-
-    values[0][2] = yyStr + '/' + ("0" + (tzDate.getMonth() + 1)).slice(-2) + '/' + ("0" + tzDate.getDate()).slice(-2);
-    values[0][7] = '待確認';
-
-    var oSheet = ss.getSheetByName('訂單主檔');
-    var pSheet = ss.getSheetByName('客戶預約單');
-    var oData = oSheet ? oSheet.getRange("B:B").getValues() : [];
-    var pData = pSheet ? pSheet.getRange("B:B").getValues() : [];
-    var existingIds = oData.concat(pData);
-    
-    var maxSeq = 0;
-    for (var i = 0; i < existingIds.length; i++) {
-       var idStr = existingIds[i][0] ? existingIds[i][0].toString() : '';
-       if (idStr.indexOf(prefix) === 0) {
-          var seq = parseInt(idStr.slice(6), 10);
-          if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
-       }
-    }
-    var newOrderId = prefix + ("000" + (maxSeq + 1)).slice(-4);
+    var newOrderId = getNextOrderIdFromConfig(ss);
     values[0][1] = newOrderId;
+    
+    // 重新取得當前台北時間日期字串，供訂單內容使用 (欄位索引 2 為日期, 7 為狀態)
+    var tzDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+    values[0][2] = Utilities.formatDate(tzDate, "Asia/Taipei", "yyyy/MM/dd");
+    values[0][7] = '待確認';
 
     sheet.getRange(sheet.getLastRow() + 1, 1, values.length, values[0].length).setValues(values);
 
@@ -208,6 +192,60 @@ function handleOrderTrack(payload, ss, ctx) {
   
   if (!found) throw knownError('查無此訂單，請確認您的電話或訂單編號是否正確。');
   return { status: found };
+}
+
+/**
+ * 從 SystemConfig 分頁獲取下一個訂單編號
+ * 格式: YYMMDDXXXX (例如 2404290001)
+ */
+function getNextOrderIdFromConfig(ss) {
+  var configSheet = ss.getSheetByName('SystemConfig');
+  assert(configSheet, "找不到 SystemConfig 分頁，請確認分頁名稱正確。");
+
+  // 取得台北時間
+  var tzDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+  var todayStr = Utilities.formatDate(tzDate, "Asia/Taipei", "yyyy/MM/dd");
+  var prefix = Utilities.formatDate(tzDate, "Asia/Taipei", "yyMMdd");
+
+  // 動態尋找欄位索引
+  var headers = configSheet.getRange(1, 1, 1, configSheet.getLastColumn()).getValues()[0];
+  var dateIdx = -1;
+  var seqIdx = -1;
+
+  for (var i = 0; i < headers.length; i++) {
+    var h = String(headers[i]).trim();
+    if (h === 'last_order_date') dateIdx = i;
+    if (h === 'last_sequence') seqIdx = i;
+  }
+
+  assert(dateIdx !== -1 && seqIdx !== -1, "SystemConfig 缺少必要欄位: last_order_date 或 last_sequence");
+
+  // 讀取目前的日期與序號 (在第二行)
+  var configData = configSheet.getRange(2, 1, 1, headers.length).getValues()[0];
+  var lastDate = configData[dateIdx];
+  
+  // 處理 lastDate
+  var lastDateStr = "";
+  if (Object.prototype.toString.call(lastDate) === '[object Date]') {
+    lastDateStr = Utilities.formatDate(lastDate, "Asia/Taipei", "yyyy/MM/dd");
+  } else {
+    lastDateStr = String(lastDate);
+  }
+
+  var lastSeq = parseInt(configData[seqIdx]) || 0;
+
+  var newSeq;
+  if (lastDateStr === todayStr) {
+    newSeq = lastSeq + 1;
+  } else {
+    newSeq = 1; // 新的一天，重置序號
+  }
+
+  // 回寫更新對應欄位
+  configSheet.getRange(2, dateIdx + 1).setValue(todayStr);
+  configSheet.getRange(2, seqIdx + 1).setValue(newSeq);
+
+  return prefix + ("000" + newSeq).slice(-4);
 }
 
 

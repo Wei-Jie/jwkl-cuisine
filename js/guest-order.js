@@ -25,12 +25,18 @@ const GuestOrder = (() => {
         div.className = 'item-row';
         div.id = `item-row-${id}`;
 
+        // 過濾只顯示「上架」商品
+        const displayMenu = menuData.filter(m => {
+            const status = String(m['狀態'] || '上架').trim();
+            return status === '上架';
+        });
+
         // 依照分類分組
-        const categories = [...new Set(menuData.map(m => m['分類']))];
+        const categories = [...new Set(displayMenu.map(m => m['分類']))];
         let optionsHtml = `<option value="">選擇品項</option>`;
 
         categories.forEach(cat => {
-            const items = menuData.filter(m => m['分類'] === cat);
+            const items = displayMenu.filter(m => m['分類'] === cat);
             optionsHtml += `<optgroup label="${cat}">`;
             items.forEach(m => {
                 const priceStr = String(m['單價']).includes('*') ? '(1.4乘上重量)' : `(單價${m['單價']}元)`;
