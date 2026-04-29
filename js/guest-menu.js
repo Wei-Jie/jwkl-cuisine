@@ -6,7 +6,12 @@ const GuestMenu = (() => {
         showLoading(true);
         try {
             const rows = await Sheets.getSheet(CONFIG.SHEETS.MENU);
-            menuData = rowsToObjects(rows);
+            const allMenu = rowsToObjects(rows);
+            // 核心過濾：只顯示上架商品
+            menuData = allMenu.filter(m => {
+                const status = String(m['狀態'] || '上架').trim();
+                return status === '上架';
+            });
             renderCategories();
             renderMenu();
         } catch (e) {
