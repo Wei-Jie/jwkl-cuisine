@@ -94,6 +94,18 @@ const PendingOrders = (() => {
         const ok = await showConfirm(`確定要接單 ${d['顧客名稱']} 的預定嗎？\n接單後將正式轉入排單系統。`);
         if (!ok) return;
 
+        // --- 防呆優化 1: 鎖定按鈕 ---
+        const btn = event ? event.target : null;
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '處理中...';
+        }
+
+        // --- 防呆優化 2: 樂觀更新 (立即從畫面移除) ---
+        const originalData = [...pendingData]; // 備份
+        pendingData.splice(idx, 1);
+        renderTable();
+
         showLoading(true);
         try {
             // 1. 產生正式訂單編號

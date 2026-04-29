@@ -270,7 +270,16 @@ function handleCrudAction(action, payload, ss) {
   if (action === 'APPEND') {
     var values = sanitizeData(payload.values);
     if (values && values.length > 0) {
-      sheet.getRange(sheet.getLastRow() + 1, 1, values.length, values[0].length).setValues(values);
+      // 針對「訂單主檔」與「排單表」加入重複檢查 (防呆第二道防線)
+      if (payload.sheetName === '訂單主檔') {
+        var existingIds = sheet.getRange("B:B").getValues().flat();
+        values = values.filter(function(v) {
+          return existingIds.indexOf(String(v[1])) === -1;
+        });
+      }
+      if (values.length > 0) {
+        sheet.getRange(sheet.getLastRow() + 1, 1, values.length, values[0].length).setValues(values);
+      }
     }
   } else if (action === 'UPDATE_BY_ID') {
     var rowIndex = findRowById(sheet, payload.id);
