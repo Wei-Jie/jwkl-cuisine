@@ -20,7 +20,7 @@ const GuestMenu = (() => {
     function renderCategories() {
         const nav = document.getElementById('cat-nav');
         const categories = ['全部', ...new Set(menuData.map(m => m['分類']))];
-        
+
         nav.innerHTML = categories.map(cat => `
             <button class="cat-btn ${cat === currentCategory ? 'active' : ''}" 
                     onclick="GuestMenu.filter('${cat}')">${cat}</button>
@@ -35,19 +35,19 @@ const GuestMenu = (() => {
 
     function renderMenu() {
         const grid = document.getElementById('menu-grid');
-        const items = currentCategory === '全部' 
+        const items = currentCategory === '全部'
             ? menuData : menuData.filter(m => m['分類'] === currentCategory);
 
         grid.innerHTML = items.map(m => {
             const name = m['菜名'];
             const price = m['單價'];
             const displayPrice = String(price).includes('*') ? '秤重計價' : `$${price}`;
-            
+
             // 優先序：1. 試算表填好的網址 2. 本地 pic/菜名.jpg 3. 預設圖庫
             const localImg = `pic/${name}.jpg`;
             const spreadsheetImg = m['圖片網址'];
             const defaultImg = 'https://placehold.jp/24/2c3e50/ffffff/400x300.png?text=不好意思%0A圖片製作中';
-            
+
             const finalImg = spreadsheetImg || localImg;
 
             return `

@@ -9,7 +9,12 @@ const OrderNew = (() => {
     async function init() {
         showLoading(true);
         try {
-            menuData = await App.getMenu();
+            const allMenu = await App.getMenu();
+            // 核心過濾：後台新增訂單也只顯示上架商品
+            menuData = allMenu.filter(m => {
+                const status = String(m['狀態'] || '上架').trim();
+                return status === '上架';
+            });
             renderPage();
         } catch (e) {
             showToast('載入菜單失敗：' + e.message, 'error');
@@ -28,10 +33,10 @@ const OrderNew = (() => {
                 Sheets.getSheet(CONFIG.SHEETS.ORDER_MAIN),
                 Sheets.getSheet(CONFIG.SHEETS.PENDING)
             ]);
-            
+
             const mainIds = rowsToObjects(mainRows).map(o => o['訂單編號'] || o['編號']);
             const pendingIds = rowsToObjects(pendingRows).map(o => o['訂單編號'] || o['編號']);
-            
+
             const allIds = [...new Set([...mainIds, ...pendingIds])];
             newOrderId = generateOrderId(allIds);
         } catch (e) {
@@ -251,7 +256,7 @@ const OrderNew = (() => {
         const phoneInput = document.getElementById('on-phone')?.value?.trim() || '';
         const sns = document.getElementById('on-sns')?.value?.trim() || '';
         const email = document.getElementById('on-email')?.value?.trim() || '';
-        
+
         if (!customer) { showToast('請輸入顧客名稱', 'error'); return; }
 
         const phone = phoneInput.startsWith('0') ? "'" + phoneInput : phoneInput;
