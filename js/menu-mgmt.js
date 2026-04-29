@@ -48,11 +48,12 @@ const MenuMgmt = (() => {
                     <thead>
                         <tr>
                             <th style="width:40px"></th>
-                            <th style="width:12%">分類</th>
-                            <th style="width:20%">菜名</th>
+                            <th style="width:10%">分類</th>
+                            <th style="width:18%">菜名</th>
                             <th style="width:12%">單價</th>
-                            <th style="width:12%">最小數量</th>
+                            <th style="width:10%">最小數量</th>
                             <th style="width:12%">狀態</th>
+                            <th style="width:12%">成本</th>
                             <th>備註</th>
                         </tr>
                     </thead>
@@ -86,7 +87,7 @@ const MenuMgmt = (() => {
         wrap.classList.remove('hidden');
 
         if (!queryResult.length) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-secondary">查無資料</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-secondary">查無資料</td></tr>`;
             return;
         }
 
@@ -109,8 +110,8 @@ const MenuMgmt = (() => {
                         <option value="下架" ${status === '下架' ? 'selected' : ''}>下架</option>
                     </select>
                 </td>
+                <td><input type="text" class="form-control form-control-sm" data-field="預估成本" value="${m['預估成本'] || ''}"></td>
                 <td><input type="text" class="form-control form-control-sm" data-field="備註" value="${m['備註'] || ''}"></td>
-                <input type="hidden" data-field="預估成本" value="${m['預估成本'] || ''}">
             </tr>`;
         }).join('');
     }
@@ -141,8 +142,8 @@ const MenuMgmt = (() => {
                     <option value="下架">下架</option>
                 </select>
             </td>
-            <td><input type="text" class="form-control form-control-sm" data-field="備註"></td>
-            <input type="hidden" data-field="預估成本" value="">`;
+            <td><input type="text" class="form-control form-control-sm" data-field="預估成本" placeholder="如: 30%"></td>
+            <td><input type="text" class="form-control form-control-sm" data-field="備註"></td>`;
         tbody.appendChild(tr);
         document.getElementById('mm-count').textContent = `共 ${queryResult.length} 筆`;
         tr.scrollIntoView({ behavior: 'smooth' });
