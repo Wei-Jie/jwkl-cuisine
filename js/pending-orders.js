@@ -91,23 +91,29 @@ const PendingOrders = (() => {
 
     async function approve(idx) {
         const d = pendingData[idx];
-        const ok = await showConfirm(`確定要接單 ${d['顧客名稱']} 的預定嗎？\n接單後將正式轉入排單系統。`);
-        if (!ok) return;
+        
+        // --- 提前鎖定按鈕 (防止重複點擊彈窗) ---
+        const btnContainer = event ? event.target.closest('div') : null;
+        const btns = btnContainer ? btnContainer.querySelectorAll('button') : [];
+        btns.forEach(b => b.disabled = true);
 
-        // --- 防呆優化 1: 鎖定按鈕 ---
-        const btn = event ? event.target : null;
-        if (btn) {
-            btn.disabled = true;
-            btn.textContent = '確定';
+        const ok = await showConfirm(`確定要接單 ${d['顧客名稱']} 的預定嗎？\n接單後將正式轉入排單系統。`);
+        if (!ok) {
+            btns.forEach(b => b.disabled = false); // 使用者取消，恢復按鈕
+            return;
         }
 
-        // --- 防呆優化 2: 樂觀更新 (立即從畫面移除) ---
+        // --- 鎖定並顯示確定 ---
+        const btn = event ? event.target : null;
+        if (btn) btn.textContent = '確定';
+
+        // --- 樂觀更新 (立即從畫面移除) ---
         pendingData.splice(idx, 1);
         renderTable();
 
         showLoading(true);
         try {
-            // ... 略過中間邏輯 (1. 產生編號) ...
+            // ... 略過 ...
             const orderRows = await Sheets.getSheet(CONFIG.SHEETS.ORDER_MAIN);
             const currentOrders = rowsToObjects(orderRows);
             const orderDateObj = new Date(d['訂單日期']);
@@ -152,7 +158,7 @@ const PendingOrders = (() => {
                     d['Email'] || ''
                 ]]),
                 Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, scheduleItems),
-                // 3. 更新原預約單狀態 (新結構已移除提交時間)
+                // 3. 更新原預約單狀態
                 Sheets.updateById(CONFIG.SHEETS.PENDING, d['ID'], [
                     d['ID'], finalOrderId, d['訂單日期'], d['顧客名稱'],
                     d['品項明細'], d['總金額'], d['備註'], '已轉正', 
@@ -194,7 +200,7 @@ const PendingOrders = (() => {
             query();
         } catch (e) {
             showToast('接單失敗: ' + e.message, 'error');
-            query(); // 失敗時重新整理，確保資料正確顯示
+            query();
         } finally {
             showLoading(false);
         }
@@ -202,17 +208,23 @@ const PendingOrders = (() => {
 
     async function reject(idx) {
         const d = pendingData[idx];
-        const ok = await showConfirm(`確定要拒絕 ${d['顧客名稱']} 的預約單嗎？\n資料將會保留但狀態改為「已退回」。`);
-        if (!ok) return;
 
-        // --- 防呆優化 1: 鎖定按鈕 ---
-        const btn = event ? event.target : null;
-        if (btn) {
-            btn.disabled = true;
-            btn.textContent = '確定';
+        // --- 提前鎖定按鈕 ---
+        const btnContainer = event ? event.target.closest('div') : null;
+        const btns = btnContainer ? btnContainer.querySelectorAll('button') : [];
+        btns.forEach(b => b.disabled = true);
+
+        const ok = await showConfirm(`確定要拒絕 ${d['顧客名稱']} 的預約單嗎？\n資料將會保留但狀態改為「已退回」。`);
+        if (!ok) {
+            btns.forEach(b => b.disabled = false);
+            return;
         }
 
-        // --- 防呆優化 2: 樂觀更新 (立即從畫面移除) ---
+        // --- 鎖定並顯示確定 ---
+        const btn = event ? event.target : null;
+        if (btn) btn.textContent = '確定';
+
+        // --- 樂觀更新 (立即從畫面移除) ---
         pendingData.splice(idx, 1);
         renderTable();
 
@@ -229,7 +241,7 @@ const PendingOrders = (() => {
             query();
         } catch (e) {
             showToast('更新失敗: ' + e.message, 'error');
-            query(); // 失敗時重新整理
+            query();
         } finally {
             showLoading(false);
         }
