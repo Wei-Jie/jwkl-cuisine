@@ -21,6 +21,7 @@ Thumbs.db
 .vscode/
 .idea/
 .gemini/
+*.code-workspace
 
 # 4. 備份與暫存
 *.log
