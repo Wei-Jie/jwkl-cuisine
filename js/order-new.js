@@ -5,6 +5,8 @@
 const OrderNew = (() => {
     let menuData = [];
     let itemCount = 0;
+    let _mainHeaders = [];
+    let _scheduleHeaders = [];
 
     async function init() {
         showLoading(true);
@@ -35,8 +37,8 @@ const OrderNew = (() => {
                 Sheets.getSheet(CONFIG.SHEETS.SCHEDULE)
             ]);
 
-            OrderNew._mainHeaders = mainRows[0] || [];
-            OrderNew._scheduleHeaders = scheduleRows[0] || [];
+            _mainHeaders = mainRows[0] || [];
+            _scheduleHeaders = scheduleRows[0] || [];
 
             const mainIds = rowsToObjects(mainRows).map(o => o['訂單編號'] || o['編號']);
             const pendingIds = rowsToObjects(pendingRows).map(o => o['訂單編號'] || o['編號']);
@@ -357,21 +359,21 @@ const OrderNew = (() => {
             const noteEl = document.getElementById(`on-item-note-${id}`);
             const noteText = noteEl?.tagName === 'INPUT' ? noteEl.value : (noteEl?.textContent || '');
 
-            const schedHeaders = OrderNew._scheduleHeaders && OrderNew._scheduleHeaders.length ? OrderNew._scheduleHeaders : ['ID', '訂單編號', '排單日期', '顧客名稱', '品項名稱', '預計出貨日期 (A)', '數量', '單價', '小計', '說明', '排程狀態', '類別'];
+            const headers = _scheduleHeaders.length ? _scheduleHeaders : ['ID', '訂單編號', '排單日期', '顧客名稱', '品項名稱', '預計出貨日期 (A)', '數量', '單價', '小計', '說明', '排程狀態', '類別'];
             
-            const newRow = schedHeaders.map(k => {
+            const newRow = headers.map(k => {
                 const hk = String(k).trim();
                 if (hk === 'ID') return generateUUID();
                 if (hk.includes('編號')) return orderId;
                 if (hk.includes('日期') && !hk.includes('預計')) return orderDate;
                 if (hk.includes('姓名') || hk.includes('顧客') || hk.includes('客戶')) return customer;
                 if (hk.includes('品項') || hk.includes('商品名稱')) return name;
-                if (hk.includes('預計') || hk.includes('出貨')) return shipDate;
+                if (hk.includes('預計出貨') || hk === '預計出貨日' || hk === '出貨日' || hk.includes('出貨日期')) return shipDate;
                 if (hk.includes('數量') && !hk.includes('訂單')) return qty;
                 if (hk.includes('單價')) return unitPrice !== '' ? unitPrice : (isDiscount ? '-' : '');
                 if (hk.includes('小計') || hk.includes('價格')) return subtotal !== '' ? subtotal : '';
                 if (hk.includes('說明') || hk.includes('備註')) return noteText;
-                if (hk.includes('狀態')) return CONFIG.STATUS.PENDING;
+                if (hk.includes('狀態') || hk.includes('排程') || hk.includes('製作')) return CONFIG.STATUS.PENDING;
                 if (hk.includes('類別')) return isDiscount ? '減免金額' : '產品';
                 return '';
             });
@@ -382,9 +384,9 @@ const OrderNew = (() => {
 
         showLoading(true);
         try {
-            const mainHeaders = OrderNew._mainHeaders && OrderNew._mainHeaders.length ? OrderNew._mainHeaders : ['ID', '訂單編號', '訂單日期', '訂單金額', '顧客名稱', '狀態', '電話', 'SNS', 'Email'];
+            const mHeaders = _mainHeaders.length ? _mainHeaders : ['ID', '訂單編號', '訂單日期', '訂單金額', '顧客名稱', '狀態', '電話', 'SNS', 'Email'];
             
-            const mainRow = mainHeaders.map(k => {
+            const mainRow = mHeaders.map(k => {
                 const hk = String(k).trim();
                 if (hk === 'ID') return generateUUID();
                 if (hk.includes('編號')) return orderId;

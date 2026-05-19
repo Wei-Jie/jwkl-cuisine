@@ -805,7 +805,7 @@ const OrderList = (() => {
                     if (k.includes('日期') && !k.includes('預計')) return line['排單日期'] || order['訂單日期'];
                     if (k.includes('姓名') || k.includes('顧客') || k.includes('客戶')) return line['顧客名稱'] || order['顧客名稱'];
                     if (k.includes('品項') || k.includes('商品名稱')) return line['品項名稱'];
-                    if (k.includes('預計') || k.includes('出貨')) return line['預計出貨日期 (A)'];
+                    if (k.includes('預計出貨') || k === '預計出貨日' || k === '出貨日' || k.includes('出貨日期')) return line['預計出貨日期 (A)'];
                     if (k.includes('數量') && !k.includes('訂單')) return line['數量'];
                     if (k.includes('單價')) {
                         if (line._isDiscount) return '-';
@@ -813,7 +813,7 @@ const OrderList = (() => {
                     }
                     if (k.includes('小計') || k.includes('價格')) return line['小計'] || '';
                     if (k.includes('說明') || k.includes('備註')) return line['說明'] || '';
-                    if (k.includes('狀態')) return line['排程狀態'];
+                    if (k.includes('狀態') || k.includes('排程') || k.includes('製作')) return line['排程狀態'];
                     if (k.includes('類別')) return line['類別'] || (line._isDiscount ? '減免金額' : '產品');
                     return line[k] || '';
                 });
