@@ -813,8 +813,8 @@ const OrderList = (() => {
                     }
                     if (k.includes('小計') || k.includes('價格')) return line['小計'] || '';
                     if (k.includes('說明') || k.includes('備註')) return line['說明'] || '';
-                    if (k.includes('狀態') || k.includes('排程') || k.includes('製作')) return line['排程狀態'];
-                    if (k.includes('類別')) return line['類別'] || (line._isDiscount ? '減免金額' : '產品');
+                    if (k.includes('狀態') || k.includes('排程')) return line['排程狀態'];
+                    if (k.includes('類') || k.includes('別')) return line['類別'] || (line._isDiscount ? '減免金額' : '產品');
                     return line[k] || '';
                 });
                 inserts.push(newRow);
@@ -838,8 +838,8 @@ const OrderList = (() => {
                 showToast('所有明細均已刪除，該訂單已被移除', 'success');
             } else {
                 const orderHeaders = Object.keys(order).filter(k => !k.startsWith('_'));
-                // 修正：動態匹配「金額」關鍵字，不再寫死字串
-                const orderRow = orderHeaders.map(k => k.includes('金額') ? newTotal : order[k] || '');
+                // 修正：強制轉為 Number
+                const orderRow = orderHeaders.map(k => k.includes('金額') ? (Number(newTotal) || 0) : order[k] || '');
 
                 const tasks = [
                     Sheets.updateById(CONFIG.SHEETS.ORDER_MAIN, order['ID'], orderRow)

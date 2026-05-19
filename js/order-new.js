@@ -373,8 +373,8 @@ const OrderNew = (() => {
                 if (hk.includes('單價')) return unitPrice !== '' ? unitPrice : (isDiscount ? '-' : '');
                 if (hk.includes('小計') || hk.includes('價格')) return subtotal !== '' ? subtotal : '';
                 if (hk.includes('說明') || hk.includes('備註')) return noteText;
-                if (hk.includes('狀態') || hk.includes('排程') || hk.includes('製作')) return CONFIG.STATUS.PENDING;
-                if (hk.includes('類別')) return isDiscount ? '減免金額' : '產品';
+                if (hk.includes('狀態') || hk.includes('排程')) return CONFIG.STATUS.PENDING;
+                if (hk.includes('類') || hk.includes('別')) return isDiscount ? '減免金額' : '產品';
                 return '';
             });
             items.push(newRow);
@@ -391,7 +391,7 @@ const OrderNew = (() => {
                 if (hk === 'ID') return generateUUID();
                 if (hk.includes('編號')) return orderId;
                 if (hk.includes('日期')) return orderDate;
-                if (hk.includes('金額')) return total === 0 ? 0 : (total || '');
+                if (hk.includes('金額') || hk.includes('Total')) return Number(total) || 0;
                 if (hk.includes('姓名') || hk.includes('顧客') || hk.includes('客戶')) return customer;
                 if (hk.includes('電話') || hk.includes('手機') || hk.includes('聯絡')) return phoneInput ? "'" + phoneInput.replace(/^'/, '') : ''; // 強制轉為文字
                 if (hk.toUpperCase().includes('SNS') || hk.includes('Line') || hk.includes('IG')) return sns;
