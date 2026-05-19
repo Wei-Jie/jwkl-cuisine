@@ -319,12 +319,6 @@ const OrderNew = (() => {
         const email = document.getElementById('on-email')?.value?.trim() || '';
 
         if (!customer) { showToast('請輸入顧客名稱', 'error'); return; }
-
-        // ===== 除錯用：確認欄位名稱（待解決後可移除）=====
-        console.log('[DEBUG] _scheduleHeaders:', JSON.stringify(_scheduleHeaders));
-        console.log('[DEBUG] _mainHeaders:', JSON.stringify(_mainHeaders));
-        // ===================================================
-
         const phone = phoneInput.startsWith('0') ? "'" + phoneInput : phoneInput;
         const orderId = document.getElementById('on-id')?.value;
         const orderDateVal = document.getElementById('on-date')?.value;
