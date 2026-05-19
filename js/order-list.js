@@ -803,11 +803,14 @@ const OrderList = (() => {
                     if (k === 'ID') return generateUUID();
                     if (k === '訂單編號') return orderId;
                     if (k.includes('日期') && !k.includes('預計')) return line['排單日期'] || order['訂單日期'];
-                    if (k.includes('顧客名稱') || k === '姓名') return line['顧客名稱'] || order['顧客名稱'];
-                    if (k.includes('品項')) return line['品項名稱'];
-                    if (k.includes('預計')) return line['預計出貨日期 (A)'];
-                    if (k.includes('數量')) return line['數量'];
-                    if (k.includes('單價')) return line._unitPriceStr || line._unitPrice || '';
+                    if (k.includes('姓名') || k.includes('顧客') || k.includes('客戶')) return line['顧客名稱'] || order['顧客名稱'];
+                    if (k.includes('品項') || k.includes('商品名稱')) return line['品項名稱'];
+                    if (k.includes('預計') || k.includes('出貨')) return line['預計出貨日期 (A)'];
+                    if (k.includes('數量') && !k.includes('訂單')) return line['數量'];
+                    if (k.includes('單價')) {
+                        if (line._isDiscount) return '-';
+                        return line._unitPriceStr !== undefined && line._unitPriceStr !== '' ? line._unitPriceStr : (line._unitPrice !== undefined && line._unitPrice !== 0 ? line._unitPrice : '');
+                    }
                     if (k.includes('小計') || k.includes('價格')) return line['小計'] || '';
                     if (k.includes('說明') || k.includes('備註')) return line['說明'] || '';
                     if (k.includes('狀態')) return line['排程狀態'];
