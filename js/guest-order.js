@@ -158,6 +158,10 @@ const GuestOrder = (() => {
                 ? window.location.origin
                 : '';
 
+            // 計算純數字金額，移除 $ 和千分位符號
+            const rawTotalText = document.getElementById('summary-total').textContent || '0';
+            const cleanTotal = parseInt(rawTotalText.replace(/[^0-9]/g, ''), 10) || 0;
+
             // 新結構: (ID, 訂單編號, 日期, 姓名, 明細, 金額, 備註, 狀態, 電話, SNS, Email)
             const payload = {
                 action: 'SUBMIT_CUSTOMER_ORDER',
@@ -169,7 +173,7 @@ const GuestOrder = (() => {
                     date, // 訂單日期 (原本 index 3 移至此)
                     name,
                     JSON.stringify(items),
-                    document.getElementById('summary-total').textContent, // 包含待確認文字
+                    cleanTotal, // 純數字，不含 $
                     normalizeNote(note),
                     '待確認',
                     phone,

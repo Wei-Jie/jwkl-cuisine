@@ -138,7 +138,7 @@ const PendingOrders = (() => {
                     subtotal,
                     d['備註'] || '',
                     CONFIG.STATUS.PENDING,
-                    ''
+                    '產品'   // 類別：接單時預設為產品
                 ];
             });
 
@@ -150,7 +150,7 @@ const PendingOrders = (() => {
                     generateUUID(),
                     finalOrderId,
                     d['訂單日期'],
-                    d['總金額'],
+                    Number(String(d['總金額'] || '0').replace(/[^0-9]/g, '')) || 0, // 純數字，移除 $
                     d['顧客名稱'],
                     '',
                     formattedPhone,
