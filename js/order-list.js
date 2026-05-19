@@ -450,8 +450,24 @@ const OrderList = (() => {
             }
 
             let trHtml = '';
-            // 如果是待排程，可完整編輯
-            if (isPending) {
+            if (line._isDiscount) {
+                const discountAmt = line['小計價格'] || line['小計'] || 0;
+                trHtml = `<tr>
+                    <td>
+                        <span class="badge badge-pending" style="background:var(--color-danger);color:#fff;padding:2px 6px;border-radius:4px;font-size:0.8rem">折扣</span>
+                        <input type="hidden" class="od-name" data-line-idx="${lineIdx}" value="折扣">
+                    </td>
+                    <td>1 <input type="hidden" class="od-qty" data-line-idx="${lineIdx}" value="1"></td>
+                    <td><span class="text-secondary">-</span></td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm" style="color:var(--color-danger); font-weight:bold" id="od-subtotal-${lineIdx}" data-line-idx="${lineIdx}" value="${discountAmt}" step="any" placeholder="減免金額" onchange="OrderList.onDiscountChange(${lineIdx})" ${status === '已出貨' ? 'disabled' : ''}>
+                    </td>
+                    <td><input type="text" class="form-control form-control-sm od-note" data-line-idx="${lineIdx}" value="${note}" placeholder="說明" ${status === '已出貨' ? 'disabled' : ''}></td>
+                    <td><input type="date" class="form-control form-control-sm od-date" data-line-idx="${lineIdx}" value="${toInputDate(date)}" ${status === '已出貨' ? 'disabled' : ''}></td>
+                    <td>${statusHtml}</td>
+                    <td>${status === '已出貨' ? '<span class="text-secondary text-sm">🔒</span>' : `<button class="btn-icon" onclick="OrderList.removeItem(${lineIdx})" title="刪除此列">✕</button>`}</td>
+                </tr>`;
+            } else if (isPending) {
                 trHtml = `<tr>
                     <td>
                         <select class="form-control form-control-sm od-name" data-line-idx="${lineIdx}" onchange="OrderList.onItemChange(${lineIdx})">
@@ -508,6 +524,8 @@ const OrderList = (() => {
         const originalLines = allSchedule.filter(s => s['訂單編號'] === orderId);
         detailLines = originalLines.map(l => {
             const name = l['品項'] || l['品項名稱'] || '';
+            const cat = l['類別'] || '';
+            const isDiscount = cat === '減免金額' || name === '折扣';
             const menuItem = menuData.find(m => m['菜名'] === name);
             const isWeight = !!(menuItem && String(menuItem['單價']).includes('*'));
             const unitPrice = isWeight ? menuItem['單價'] : parseInt(menuItem?.['單價']) || 0;
@@ -515,7 +533,8 @@ const OrderList = (() => {
                 ...l,
                 _unitPriceStr: menuItem?.['單價'],
                 _unitPrice: unitPrice,
-                _isWeight: isWeight
+                _isWeight: isWeight,
+                _isDiscount: isDiscount
             };
         });
 
@@ -541,6 +560,43 @@ const OrderList = (() => {
             _isNew: true
         });
         renderDetailTable();
+    }
+
+    function addDiscount() {
+        if (currentDetailIdx === null) return;
+        const order = queryResult[currentDetailIdx];
+
+        detailLines.push({
+            '訂單編號': order['訂單編號'],
+            '排單日期': order['訂單日期'],
+            '顧客名稱': order['顧客名稱'],
+            '品項名稱': '折扣',
+            '數量': 1,
+            '預計出貨日期 (A)': '',
+            '說明': '',
+            '排程狀態': '待排程',
+            '小計': 0,
+            '類別': '減免金額',
+            _unitPrice: 0,
+            _isNew: true,
+            _isDiscount: true
+        });
+        renderDetailTable();
+    }
+
+    function onDiscountChange(lineIdx) {
+        const subtotalEl = document.getElementById(`od-subtotal-${lineIdx}`);
+        if (!subtotalEl) return;
+        
+        let val = parseFloat(subtotalEl.value) || 0;
+        if (val > 0) val = -val; // 自動轉為負數
+        subtotalEl.value = val;
+        
+        const line = detailLines[lineIdx];
+        const subtotalKey = Object.keys(line).find(k => !k.startsWith('_') && k.includes('小計')) || '小計價格';
+        line[subtotalKey] = val;
+        
+        updateDetailTotal();
     }
 
     function removeItem(lineIdx) {
@@ -631,6 +687,11 @@ const OrderList = (() => {
             }
             total += sub;
         });
+
+        if (total < 0) {
+            showToast('警告：折扣後金額小於 0，已自動調整為 0', 'warning');
+            total = 0;
+        }
 
         const totalEl = document.getElementById('od-total');
         if (totalEl) {
@@ -735,20 +796,25 @@ const OrderList = (() => {
             if (line._deleted) return;
 
             if (line._isNew) {
-                inserts.push([
-                    generateUUID(),
-                    orderId,
-                    line['排單日期'] || order['訂單日期'],
-                    line['顧客名稱'] || order['顧客名稱'],
-                    line['品項名稱'],
-                    line['預計出貨日期 (A)'],
-                    line['數量'],
-                    line._unitPriceStr || line._unitPrice || '',
-                    line['小計'] || '',
-                    line['說明'] || '',
-                    line['排程狀態'],
-                    ''
-                ]);
+                const fallbackHeaders = ['ID', '訂單編號', '排單日期', '顧客名稱', '品項名稱', '預計出貨日期 (A)', '數量', '單價', '小計', '說明', '排程狀態', '類別'];
+                const headers = (allSchedule.length > 0) ? Object.keys(allSchedule[0]).filter(k => !k.startsWith('_')) : fallbackHeaders;
+                
+                const newRow = headers.map(k => {
+                    if (k === 'ID') return generateUUID();
+                    if (k === '訂單編號') return orderId;
+                    if (k.includes('日期') && !k.includes('預計')) return line['排單日期'] || order['訂單日期'];
+                    if (k.includes('顧客名稱') || k === '姓名') return line['顧客名稱'] || order['顧客名稱'];
+                    if (k.includes('品項')) return line['品項名稱'];
+                    if (k.includes('預計')) return line['預計出貨日期 (A)'];
+                    if (k.includes('數量')) return line['數量'];
+                    if (k.includes('單價')) return line._unitPriceStr || line._unitPrice || '';
+                    if (k.includes('小計') || k.includes('價格')) return line['小計'] || '';
+                    if (k.includes('說明') || k.includes('備註')) return line['說明'] || '';
+                    if (k.includes('狀態')) return line['排程狀態'];
+                    if (k.includes('類別')) return line['類別'] || (line._isDiscount ? '減免金額' : '產品');
+                    return line[k] || '';
+                });
+                inserts.push(newRow);
             } else {
                 const lineHeaders = Object.keys(line).filter(k => !k.startsWith('_'));
                 const lineRow = lineHeaders.map(k => line[k]);
@@ -813,5 +879,5 @@ const OrderList = (() => {
         }
     }
 
-    return { init, query, toggleAll, saveChanges, showDetail, closeDetail, saveDetail, addItem, removeItem, onItemChange, onQtyChange };
+    return { init, query, toggleAll, saveChanges, showDetail, closeDetail, saveDetail, addItem, addDiscount, removeItem, onItemChange, onQtyChange, onDiscountChange };
 })();

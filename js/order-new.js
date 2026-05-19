@@ -105,9 +105,14 @@ const OrderNew = (() => {
                     <tbody id="on-items-body"></tbody>
                 </table>
             </div>
-            <button class="btn btn-outline btn-sm mt-12" onclick="OrderNew.addItem()">
-                ＋ 新增品項
-            </button>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+                <button class="btn btn-outline btn-sm" onclick="OrderNew.addItem()">
+                    ＋ 新增品項
+                </button>
+                <button class="btn btn-outline btn-sm" style="color:var(--color-danger); border-color:var(--color-danger)" onclick="OrderNew.addDiscount()">
+                    ＋ 新增折扣
+                </button>
+            </div>
         </div>
 
         <div class="card">
@@ -170,6 +175,51 @@ const OrderNew = (() => {
         }
     }
 
+    function addDiscount() {
+        itemCount++;
+        const id = itemCount;
+        const tbody = document.getElementById('on-items-body');
+        if (!tbody) return;
+
+        const tr = document.createElement('tr');
+        tr.id = `on-item-${id}`;
+        tr.dataset.isDiscount = 'true';
+        tr.innerHTML = `
+            <td>
+                <span class="badge badge-pending" style="background:var(--color-danger);color:#fff;padding:2px 6px;border-radius:4px;font-size:0.8rem">折扣</span>
+                <input type="hidden" id="on-item-name-${id}" value="折扣">
+            </td>
+            <td>
+                1 <input type="hidden" id="on-item-qty-${id}" value="1">
+            </td>
+            <td><span id="on-item-price-${id}" class="text-secondary">-</span></td>
+            <td>
+                <input type="number" class="form-control form-control-sm" style="color:var(--color-danger); font-weight:bold" id="on-item-subtotal-input-${id}" onchange="OrderNew.onDiscountChange(${id})" step="any" placeholder="減免金額">
+                <span id="on-item-subtotal-${id}" style="display:none">0</span>
+            </td>
+            <td><input type="text" class="form-control form-control-sm" id="on-item-note-${id}" placeholder="說明"></td>
+            <td>
+                <button class="btn-icon" onclick="OrderNew.removeItem(${id})" title="刪除此列">✕</button>
+            </td>`;
+        tbody.appendChild(tr);
+        updateTotal();
+    }
+
+    function onDiscountChange(id) {
+        const inputEl = document.getElementById(`on-item-subtotal-input-${id}`);
+        const subtotalEl = document.getElementById(`on-item-subtotal-${id}`);
+        if (!inputEl) return;
+        
+        let val = parseFloat(inputEl.value) || 0;
+        if (val > 0) val = -val;
+        inputEl.value = val;
+        
+        if (subtotalEl) {
+            subtotalEl.textContent = val;
+        }
+        updateTotal();
+    }
+
     function onItemChange(id, presetQty = null) {
         const nameEl = document.getElementById(`on-item-name-${id}`);
         const qtyEl = document.getElementById(`on-item-qty-${id}`);
@@ -229,10 +279,15 @@ const OrderNew = (() => {
     function updateTotal() {
         let total = 0;
         document.querySelectorAll('[id^="on-item-subtotal-"]').forEach(el => {
+            if (el.id.includes('input')) return;
             const val = el.textContent.replace(/[$,]/g, '');
             const n = parseInt(val);
             if (!isNaN(n)) total += n;
         });
+        if (total < 0) {
+            showToast('警告：折扣後金額小於 0，已自動調整為 0', 'warning');
+            total = 0;
+        }
         const totalEl = document.getElementById('on-total');
         if (totalEl) totalEl.textContent = `$${total.toLocaleString('zh-TW')}`;
     }
@@ -274,18 +329,34 @@ const OrderNew = (() => {
             const qty = parseInt(document.getElementById(`on-item-qty-${id}`)?.value) || 0;
             if (!name || !qty) return;
 
-            const menuItem = menuData.find(m => m['菜名'] === name);
-            if (!menuItem) return;
+            const tr = document.getElementById(`on-item-${id}`);
+            const isDiscount = tr && tr.dataset.isDiscount === 'true';
 
-            const isWeight = String(menuItem['單價']).includes('*');
-            const unitPrice = isWeight ? menuItem['單價'] : parseInt(menuItem['單價']) || 0;
-            const subtotal = isWeight ? '' : unitPrice * qty;
-            if (!isWeight) total += subtotal;
+            let unitPrice = 0;
+            let subtotal = 0;
+
+            if (isDiscount) {
+                const subInput = document.getElementById(`on-item-subtotal-input-${id}`);
+                subtotal = parseFloat(subInput?.value) || 0;
+                unitPrice = ''; // 不填單價
+                total += subtotal;
+            } else {
+                const menuItem = menuData.find(m => m['菜名'] === name);
+                if (!menuItem) return;
+
+                const isWeight = String(menuItem['單價']).includes('*');
+                unitPrice = isWeight ? menuItem['單價'] : parseInt(menuItem['單價']) || 0;
+                subtotal = isWeight ? '' : unitPrice * qty;
+                if (!isWeight) total += subtotal;
+            }
+            
+            const noteEl = document.getElementById(`on-item-note-${id}`);
+            const noteText = noteEl?.tagName === 'INPUT' ? noteEl.value : (noteEl?.textContent || '');
 
             items.push([
                 generateUUID(), orderId, orderDate, customer, name,
                 shipDate, qty, unitPrice, subtotal || '',
-                '', CONFIG.STATUS.PENDING, ''
+                noteText, CONFIG.STATUS.PENDING, isDiscount ? '減免金額' : '產品'
             ]);
         });
 
@@ -296,7 +367,7 @@ const OrderNew = (() => {
             // 使用 Promise.all 並發寫入訂單與排單表以節省一半的等待時間
             await Promise.all([
                 Sheets.appendRows(CONFIG.SHEETS.ORDER_MAIN, [
-                    [generateUUID(), orderId, orderDate, total || '', customer, '', phone, sns, email]
+                    [generateUUID(), orderId, orderDate, total === 0 ? 0 : (total || ''), customer, '', phone, sns, email]
                 ]),
                 Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, items)
             ]);
@@ -310,5 +381,5 @@ const OrderNew = (() => {
         }
     }
 
-    return { init, addItem, removeItem, clearAll, resetForm, save, onItemChange, onQtyChange };
+    return { init, addItem, addDiscount, removeItem, clearAll, resetForm, save, onItemChange, onQtyChange, onDiscountChange };
 })();
