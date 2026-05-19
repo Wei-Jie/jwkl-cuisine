@@ -127,18 +127,19 @@ const PendingOrders = (() => {
                 const subtotal = isWeight ? '' : unitPrice * parseFloat(it.qty);
 
                 return [
-                    generateUUID(),
-                    finalOrderId,
-                    d['訂單日期'],
-                    d['顧客名稱'],
-                    it.name,
-                    d['訂單日期'], // 預設出貨日同訂單日
-                    it.qty,
-                    unitPrice,
-                    subtotal,
-                    d['備註'] || '',
-                    CONFIG.STATUS.PENDING,
-                    '產品'   // 類別：接單時預設為產品
+                    generateUUID(),          // ID
+                    finalOrderId,            // 訂單編號
+                    d['訂單日期'],           // 排單日期
+                    d['顧客名稱'],           // 客戶名稱
+                    it.name,                 // 品項名稱
+                    '產品',                  // 類別
+                    d['訂單日期'],           // 預計出貨日期 (A)（預設同訂單日）
+                    it.qty,                  // 訂購數量
+                    unitPrice,               // 商品單價
+                    subtotal,                // 小計價格
+                    '',                      // 預計製作日（留空）
+                    CONFIG.STATUS.PENDING,   // 排程狀態
+                    d['備註'] || ''          // 備註
                 ];
             });
 

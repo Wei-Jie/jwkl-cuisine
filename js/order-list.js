@@ -808,13 +808,17 @@ const OrderList = (() => {
                     if (k.includes('預計出貨') || k === '預計出貨日' || k === '出貨日' || k.includes('出貨日期')) return line['預計出貨日期 (A)'];
                     if (k.includes('數量') && !k.includes('訂單')) return line['數量'];
                     if (k.includes('單價')) {
-                        if (line._isDiscount) return '-';
+                        if (line._isDiscount) {
+                            // 折扣：單價填入折扣金額（與小計同值，為負數）
+                            const subtotalKey = Object.keys(line).find(kk => !kk.startsWith('_') && kk.includes('小計')) || '小計';
+                            return line[subtotalKey] || 0;
+                        }
                         return line._unitPriceStr !== undefined && line._unitPriceStr !== '' ? line._unitPriceStr : (line._unitPrice !== undefined && line._unitPrice !== 0 ? line._unitPrice : '');
                     }
                     if (k.includes('小計') || k.includes('價格')) return line['小計'] || '';
                     if (k.includes('說明') || k.includes('備註')) return line['說明'] || '';
                     if (k.includes('狀態') || k.includes('排程')) return line['排程狀態'];
-                    if (k.includes('類') || k.includes('別')) return line['類別'] || (line._isDiscount ? '減免金額' : '產品');
+                    if (k === '類別' || k.trim() === '類別') return line['類別'] || (line._isDiscount ? '減免金額' : '產品');
                     return line[k] || '';
                 });
                 inserts.push(newRow);
