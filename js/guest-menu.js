@@ -50,7 +50,11 @@ const GuestMenu = (() => {
 
             // 優先序：1. 試算表填好的網址 2. 本地 pic/菜名.jpg 3. 預設圖庫
             const localImg = `pic/${name}.jpg`;
-            const spreadsheetImg = m['圖片網址'];
+            let spreadsheetImg = m['圖片網址'];
+            // 防禦性檢查：若圖片網址被誤植為狀態名稱，則自動忽略以還原成讀取本地圖片
+            if (spreadsheetImg === '上架' || spreadsheetImg === '下架') {
+                spreadsheetImg = '';
+            }
             const defaultImg = 'https://placehold.jp/24/2c3e50/ffffff/400x300.png?text=不好意思%0A圖片製作中';
 
             const finalImg = spreadsheetImg || localImg;

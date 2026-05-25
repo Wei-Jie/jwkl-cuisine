@@ -122,7 +122,7 @@ const MenuMgmt = (() => {
         const tbody = document.getElementById('mm-tbody');
         const idx = queryResult.length;
 
-        const newItem = { _rowIndex: null, _isNew: true, '分類': CATEGORIES[0], '菜名': '', '單價': '', '最小訂購數量': 1, '預估成本': '', '備註': '', '狀態': '上架' };
+        const newItem = { _rowIndex: null, _isNew: true, '分類': CATEGORIES[0], '菜名': '', '單價': '', '最小訂購數量': 1, '預估成本': '', '備註': '', '圖片網址': '', '狀態': '上架' };
         queryResult.push(newItem);
 
         const tr = document.createElement('tr');
@@ -207,7 +207,7 @@ const MenuMgmt = (() => {
 
             const item = queryResult[idx];
             
-            // 欄位順序: ID, 分類, 菜名, 單價, 最小訂購數量, 備註, 預估成本, 狀態
+            // 欄位順序: ID, 分類, 菜名, 單價, 最小訂購數量, 備註, 預估成本, 圖片網址, 狀態
             const rowValues = [
                 item['ID'] || generateUUID(),
                 getValue('分類'),
@@ -216,6 +216,7 @@ const MenuMgmt = (() => {
                 getValue('最小訂購數量'),
                 getValue('備註'),
                 getValue('預估成本'),
+                item['圖片網址'] || '',
                 getValue('狀態')
             ];
 
