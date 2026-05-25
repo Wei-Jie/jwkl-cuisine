@@ -207,6 +207,12 @@ const MenuMgmt = (() => {
 
             const item = queryResult[idx];
             
+            let imgUrl = item['圖片網址'] || '';
+            // 防禦性檢查：若原有圖片網址被誤植為狀態名稱，則儲存時自動清除以修復資料
+            if (imgUrl === '上架' || imgUrl === '下架') {
+                imgUrl = '';
+            }
+
             // 欄位順序: ID, 分類, 菜名, 單價, 最小訂購數量, 備註, 預估成本, 圖片網址, 狀態
             const rowValues = [
                 item['ID'] || generateUUID(),
@@ -216,7 +222,7 @@ const MenuMgmt = (() => {
                 getValue('最小訂購數量'),
                 getValue('備註'),
                 getValue('預估成本'),
-                item['圖片網址'] || '',
+                imgUrl,
                 getValue('狀態')
             ];
 
