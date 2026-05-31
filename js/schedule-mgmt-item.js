@@ -120,7 +120,7 @@ const ScheduleMgmtItem = (() => {
             // 過濾條件：品項名稱與下拉完全相同，且狀態為「待排程」或「已完成」
             scheduleData = allItems.filter(item => {
                 const name = String(item['品項名稱'] || item['品項'] || '').trim();
-                const status = String(item['排程狀態'] || item['狀態'] || '').trim();
+                const status = String(getValueByKeyword(item, ['狀態', '排程']) || '').trim();
                 return name === selectedItem && (status === CONFIG.STATUS.PENDING || status === CONFIG.STATUS.DONE);
             });
 
@@ -171,10 +171,12 @@ const ScheduleMgmtItem = (() => {
             const orderDate = d['排單日期'] || d['訂單日期'] || '-';
             const customerName = d['顧客名稱'] || d['客戶名稱'] || d['客戶姓名'] || '-';
             const itemName = d['品項名稱'] || d['品項'] || '-';
-            const qty = parseFloat(d['數量']) || 0;
-            const unitPrice = d['單價'] || d['商品單價'] || 0;
-            const subtotal = d['小計'] || d['小計價格'] || 0;
-            const status = d['排程狀態'] || '-';
+            
+            // 採用強健的關鍵字定位取值，解決 Google Sheet 表頭如「數量」與「訂購數量」的細微名稱差異
+            const qty = parseFloat(getValueByKeyword(d, ['數量', 'qty'])) || 0;
+            const unitPrice = getValueByKeyword(d, ['單價', 'price']) || 0;
+            const subtotal = getValueByKeyword(d, ['小計', 'subtotal']) || 0;
+            const status = getValueByKeyword(d, ['狀態', '排程']) || '-';
 
             return `
                 <tr>
@@ -199,15 +201,15 @@ const ScheduleMgmtItem = (() => {
             `;
         }).join('');
 
-        // 計算訂購數量加總
+        // 計算訂購數量加總 (採用強健的關鍵字定位取值)
         // 1. 「待排程」訂購數量加總
         const pendingSum = scheduleData
-            .filter(d => String(d['排程狀態']).trim() === CONFIG.STATUS.PENDING)
-            .reduce((sum, d) => sum + (parseFloat(d['數量']) || 0), 0);
+            .filter(d => String(getValueByKeyword(d, ['狀態', '排程'])).trim() === CONFIG.STATUS.PENDING)
+            .reduce((sum, d) => sum + (parseFloat(getValueByKeyword(d, ['數量', 'qty'])) || 0), 0);
 
         // 2. 「已完成 ＋ 待排程」訂購數量加總
         const totalSum = scheduleData
-            .reduce((sum, d) => sum + (parseFloat(d['數量']) || 0), 0);
+            .reduce((sum, d) => sum + (parseFloat(getValueByKeyword(d, ['數量', 'qty'])) || 0), 0);
 
         // 更新至對應 Metric Cards，精緻化單位呈現
         document.getElementById('smi-sum-pending').textContent = `${pendingSum.toLocaleString('zh-TW')} 個/公克`;
