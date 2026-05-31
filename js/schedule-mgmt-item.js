@@ -41,7 +41,7 @@ const ScheduleMgmtItem = (() => {
                     </button>
                 </div>
                 <div class="table-wrap">
-                    <table class="data-table">
+                    <table class="data-table" style="min-width: 950px;">
                         <thead>
                             <tr>
                                 <th style="width: 40px; text-align: center;">
