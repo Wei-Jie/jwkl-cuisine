@@ -158,11 +158,11 @@ const ScheduleMgmtItem = (() => {
             return;
         }
 
-        // 依據訂單日期排序：最近排單的在最上方
+        // 依據訂單日期排序：最早排單的在最上方（改為升冪排序）
         const sortedData = [...scheduleData].sort((a, b) => {
             const dateA = new Date(a['排單日期'] || a['訂單日期'] || 0);
             const dateB = new Date(b['排單日期'] || b['訂單日期'] || 0);
-            return dateB - dateA;
+            return dateA - dateB;
         });
 
         tbody.innerHTML = sortedData.map(d => {
