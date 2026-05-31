@@ -7,6 +7,24 @@ const OrderNew = (() => {
     let itemCount = 0;
     let _mainHeaders = [];
     let _scheduleHeaders = [];
+    
+    // SystemConfig 取號相關狀態變數
+    let _configRows = [];
+    let _configRow = [];
+    let _dateIdx = -1;
+    let _seqIdx = -1;
+    let _newSeq = 1;
+    let _todayStrVal = '';
+
+    function getTaipeiDate() {
+        const tzDate = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+        const yyyy = tzDate.getFullYear();
+        const mm = String(tzDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(tzDate.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}/${mm}/${dd}`;
+        const prefix = `${String(yyyy).slice(-2)}${mm}${dd}`;
+        return { todayStr, prefix };
+    }
 
     async function init() {
         showLoading(true);
@@ -28,23 +46,72 @@ const OrderNew = (() => {
     async function renderPage() {
         const page = document.getElementById('page-order-new');
 
-        // 取得今日已有的訂單編號，產生新編號 (需同時檢查主檔與預約單)
+        // 取得今日已有的訂單編號，產生新編號 (從 SystemConfig 取號以維持與前台一致的流水號)
         let newOrderId = '';
+        _dateIdx = -1;
+        _seqIdx = -1;
+        _newSeq = 1;
+        _todayStrVal = '';
+
         try {
-            const [mainRows, pendingRows, scheduleRows] = await Promise.all([
+            const [mainRows, scheduleRows, configRows] = await Promise.all([
                 Sheets.getSheet(CONFIG.SHEETS.ORDER_MAIN),
-                Sheets.getSheet(CONFIG.SHEETS.PENDING),
-                Sheets.getSheet(CONFIG.SHEETS.SCHEDULE)
+                Sheets.getSheet(CONFIG.SHEETS.SCHEDULE),
+                Sheets.getSheet('SystemConfig')
             ]);
 
             _mainHeaders = mainRows[0] || [];
             _scheduleHeaders = scheduleRows[0] || [];
+            _configRows = configRows;
 
-            const mainIds = rowsToObjects(mainRows).map(o => o['訂單編號'] || o['編號']);
-            const pendingIds = rowsToObjects(pendingRows).map(o => o['訂單編號'] || o['編號']);
+            if (_configRows && _configRows.length >= 2) {
+                const headers = _configRows[0];
+                _configRow = _configRows[1];
 
-            const allIds = [...new Set([...mainIds, ...pendingIds])];
-            newOrderId = generateOrderId(allIds);
+                for (let i = 0; i < headers.length; i++) {
+                    const h = String(headers[i]).trim();
+                    if (h === 'last_order_date') _dateIdx = i;
+                    if (h === 'last_sequence') _seqIdx = i;
+                }
+
+                if (_dateIdx !== -1 && _seqIdx !== -1) {
+                    const { todayStr, prefix } = getTaipeiDate();
+                    _todayStrVal = todayStr;
+                    
+                    const lastDateVal = _configRow[_dateIdx];
+                    let lastDateStr = '';
+                    if (Object.prototype.toString.call(lastDateVal) === '[object Date]') {
+                        const yyyy = lastDateVal.getFullYear();
+                        const mm = String(lastDateVal.getMonth() + 1).padStart(2, '0');
+                        const dd = String(lastDateVal.getDate()).padStart(2, '0');
+                        lastDateStr = `${yyyy}/${mm}/${dd}`;
+                    } else if (lastDateVal) {
+                        const dObj = new Date(lastDateVal);
+                        if (!isNaN(dObj)) {
+                            const yyyy = dObj.getFullYear();
+                            const mm = String(dObj.getMonth() + 1).padStart(2, '0');
+                            const dd = String(dObj.getDate()).padStart(2, '0');
+                            lastDateStr = `${yyyy}/${mm}/${dd}`;
+                        } else {
+                            lastDateStr = String(lastDateVal).trim();
+                        }
+                    }
+
+                    const lastSeq = parseInt(_configRow[_seqIdx]) || 0;
+                    if (lastDateStr === _todayStrVal) {
+                        _newSeq = lastSeq + 1;
+                    } else {
+                        _newSeq = 1;
+                    }
+                    newOrderId = prefix + String(_newSeq).padStart(4, '0');
+                } else {
+                    console.error('SystemConfig 缺少必要欄位: last_order_date 或 last_sequence，改用備份機制');
+                    newOrderId = generateOrderId([]);
+                }
+            } else {
+                console.error('無法讀取 SystemConfig 表格或內容不足，改用備份機制');
+                newOrderId = generateOrderId([]);
+            }
         } catch (e) {
             console.error('取單號失敗:', e);
             newOrderId = generateOrderId([]);
@@ -399,10 +466,20 @@ const OrderNew = (() => {
                 return '';
             });
 
-            // 使用 Promise.all 並發寫入訂單與排單表以節省一半的等待時間
+            // 寫入 SystemConfig 以同步更新序號
+            const configUpdates = [];
+            if (_configRows && _configRows.length >= 2 && _dateIdx !== -1 && _seqIdx !== -1) {
+                const updatedConfigRow = [..._configRow];
+                updatedConfigRow[_dateIdx] = _todayStrVal;
+                updatedConfigRow[_seqIdx] = _newSeq;
+                configUpdates.push(Sheets.updateById('SystemConfig', 'CONFIG_SINGLETON', updatedConfigRow));
+            }
+
+            // 使用 Promise.all 並發寫入訂單、排單表與 SystemConfig 更新，大幅提升儲存效能與一致性
             await Promise.all([
                 Sheets.appendRows(CONFIG.SHEETS.ORDER_MAIN, [mainRow]),
-                Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, items)
+                Sheets.appendRows(CONFIG.SHEETS.SCHEDULE, items),
+                ...configUpdates
             ]);
 
             showToast(`訂單 ${orderId} 已儲存！`, 'success');
