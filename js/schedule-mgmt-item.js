@@ -5,6 +5,7 @@
 const ScheduleMgmtItem = (() => {
     let menuData = [];
     let scheduleData = [];
+    let _scheduleHeaders = [];
     let selectedItem = '';
 
     /** 初始化品項排單頁面 */
@@ -12,11 +13,11 @@ const ScheduleMgmtItem = (() => {
         const page = document.getElementById('page-schedule-mgmt-item');
         if (!page) return;
         
-        // 渲染極具質感的 SPA 頁面架構，並搭配小灶私廚風格的藍色漸變 Metric Cards
+        // 渲染極具質感的 SPA 頁面架構，並搭配小灶私廚風格的藍色與漸變 Metric Cards
         page.innerHTML = `
             <div class="page-header">
                 <h1 class="page-title">品項排單管理</h1>
-                <span class="text-secondary text-sm">依產品品項查詢歷史與今日的排單明細及數量統計</span>
+                <span class="text-secondary text-sm">依產品品項查詢排單明細與訂購數量統計，並可批次修改排程狀態</span>
             </div>
 
             <div class="card" style="margin-bottom: 20px;">
@@ -33,21 +34,27 @@ const ScheduleMgmtItem = (() => {
 
             <!-- 排單明細表格卡片 -->
             <div class="card" id="smi-table-card" style="display: none;">
-                <div class="card-header-row">
+                <div class="card-header-row" style="margin-bottom: 16px;">
                     <h2 class="card-title" id="smi-results-title" style="margin-bottom: 0;">排單明細</h2>
+                    <button class="btn btn-primary btn-sm" id="smi-save-batch-btn" onclick="ScheduleMgmtItem.saveBatch()" style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-weight: 600;">
+                        💾 儲存狀態異動
+                    </button>
                 </div>
                 <div class="table-wrap">
                     <table class="data-table">
                         <thead>
                             <tr>
+                                <th style="width: 40px; text-align: center;">
+                                    <input type="checkbox" id="smi-select-all" onclick="ScheduleMgmtItem.toggleSelectAll(this)" style="cursor: pointer; transform: scale(1.1);">
+                                </th>
                                 <th>訂單編號</th>
                                 <th>訂單日期</th>
                                 <th>客戶姓名</th>
                                 <th>品項</th>
-                                <th>數量</th>
+                                <th>訂購數量</th>
                                 <th>商品單價</th>
                                 <th>小計價格</th>
-                                <th>排程狀態</th>
+                                <th style="width: 150px;">排程狀態</th>
                             </tr>
                         </thead>
                         <tbody id="smi-tbody"></tbody>
@@ -55,14 +62,14 @@ const ScheduleMgmtItem = (() => {
                 </div>
             </div>
 
-            <!-- 下方指標加總區 (使用微漸變與圓角陰影設計，呈現 Premium 質感) -->
+            <!-- 下方指標加總區 (配合訂購數量進行加總運算) -->
             <div id="smi-summary-area" style="display: none; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 16px;">
                 <div class="card" style="margin-bottom: 0; background: linear-gradient(135deg, var(--color-warning-light) 0%, #ffffff 100%); border-left: 5px solid var(--color-warning); box-shadow: var(--shadow-sm);">
-                    <div style="font-size: 13px; font-weight: 600; color: #7a5c00;">⏳ 「待排程」加總數量</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #7a5c00;">⏳ 「待排程」訂購數量加總</div>
                     <div id="smi-sum-pending" style="font-size: 28px; font-weight: 700; color: #7a5c00; margin-top: 8px;">0</div>
                 </div>
                 <div class="card" style="margin-bottom: 0; background: linear-gradient(135deg, var(--color-success-light) 0%, #ffffff 100%); border-left: 5px solid var(--color-success); box-shadow: var(--shadow-sm);">
-                    <div style="font-size: 13px; font-weight: 600; color: #137333;">📊 「已完成 ＋ 待排程」加總數量</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #137333;">📊 「已完成 ＋ 待排程」訂購數量加總</div>
                     <div id="smi-sum-total" style="font-size: 28px; font-weight: 700; color: #137333; margin-top: 8px;">0</div>
                 </div>
             </div>
@@ -105,8 +112,9 @@ const ScheduleMgmtItem = (() => {
         showLoading(true);
 
         try {
-            // 載入排單表
+            // 載入排單表，並將表頭暫存以供後續寫回時進行欄位定位與還原
             const rows = await Sheets.getSheet(CONFIG.SHEETS.SCHEDULE);
+            _scheduleHeaders = rows[0] || [];
             const allItems = rowsToObjects(rows);
 
             // 過濾條件：品項名稱與下拉完全相同，且狀態為「待排程」或「已完成」
@@ -116,6 +124,10 @@ const ScheduleMgmtItem = (() => {
                 return name === selectedItem && (status === CONFIG.STATUS.PENDING || status === CONFIG.STATUS.DONE);
             });
 
+            // 重設表頭的全選勾選框狀態
+            const selectAllCheckbox = document.getElementById('smi-select-all');
+            if (selectAllCheckbox) selectAllCheckbox.checked = false;
+
             renderResults();
         } catch (e) {
             showToast('讀取排單資料失敗：' + e.message, 'error');
@@ -124,7 +136,7 @@ const ScheduleMgmtItem = (() => {
         }
     }
 
-    /** 渲染排單查詢結果與加總資訊 */
+    /** 渲染排單查詢結果與統計數據 */
     function renderResults() {
         const tableCard = document.getElementById('smi-table-card');
         const summaryArea = document.getElementById('smi-summary-area');
@@ -137,7 +149,7 @@ const ScheduleMgmtItem = (() => {
         tableCard.style.display = 'block';
 
         if (!scheduleData.length) {
-            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-secondary">沒有符合條件的排單紀錄（需為「待排程」或「已完成」狀態）</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center text-secondary">沒有符合條件的排單紀錄（需為「待排程」或「已完成」狀態）</td></tr>`;
             
             // 指標值歸零
             document.getElementById('smi-sum-pending').textContent = '0';
@@ -154,6 +166,7 @@ const ScheduleMgmtItem = (() => {
         });
 
         tbody.innerHTML = sortedData.map(d => {
+            const id = d['ID'];
             const orderId = d['訂單編號'] || '-';
             const orderDate = d['排單日期'] || d['訂單日期'] || '-';
             const customerName = d['顧客名稱'] || d['客戶名稱'] || d['客戶姓名'] || '-';
@@ -163,16 +176,11 @@ const ScheduleMgmtItem = (() => {
             const subtotal = d['小計'] || d['小計價格'] || 0;
             const status = d['排程狀態'] || '-';
 
-            // 套用系統原生 badge 顏色
-            let badgeClass = 'badge';
-            if (status === CONFIG.STATUS.PENDING) {
-                badgeClass = 'badge badge-pending';
-            } else if (status === CONFIG.STATUS.DONE) {
-                badgeClass = 'badge badge-done';
-            }
-
             return `
                 <tr>
+                    <td style="text-align: center;">
+                        <input type="checkbox" class="smi-row-checkbox" data-id="${escapeHtml(id)}" style="cursor: pointer; transform: scale(1.1);">
+                    </td>
                     <td class="fw-medium">${escapeHtml(orderId)}</td>
                     <td>${escapeHtml(orderDate)}</td>
                     <td>${escapeHtml(customerName)}</td>
@@ -181,18 +189,23 @@ const ScheduleMgmtItem = (() => {
                     <td>${formatAmount(unitPrice)}</td>
                     <td class="fw-bold text-accent">${formatAmount(subtotal)}</td>
                     <td>
-                        <span class="${badgeClass}">${escapeHtml(status)}</span>
+                        <select class="form-control form-control-sm smi-row-status" data-id="${escapeHtml(id)}" style="cursor: pointer; font-weight: 500;">
+                            <option value="${CONFIG.STATUS.PENDING}" ${status === CONFIG.STATUS.PENDING ? 'selected' : ''}>⏳ 待排程</option>
+                            <option value="${CONFIG.STATUS.DONE}" ${status === CONFIG.STATUS.DONE ? 'selected' : ''}>✅ 已完成</option>
+                            <option value="${CONFIG.STATUS.SHIPPED}" ${status === CONFIG.STATUS.SHIPPED ? 'selected' : ''}>📦 已出貨</option>
+                        </select>
                     </td>
                 </tr>
             `;
         }).join('');
 
-        // 1. 待排程加總數量
+        // 計算訂購數量加總
+        // 1. 「待排程」訂購數量加總
         const pendingSum = scheduleData
             .filter(d => String(d['排程狀態']).trim() === CONFIG.STATUS.PENDING)
             .reduce((sum, d) => sum + (parseFloat(d['數量']) || 0), 0);
 
-        // 2. 已完成＋待排程加總數量
+        // 2. 「已完成 ＋ 待排程」訂購數量加總
         const totalSum = scheduleData
             .reduce((sum, d) => sum + (parseFloat(d['數量']) || 0), 0);
 
@@ -203,5 +216,63 @@ const ScheduleMgmtItem = (() => {
         summaryArea.style.display = 'grid';
     }
 
-    return { init, query };
+    /** 表格勾選框全選 / 全取消 */
+    function toggleSelectAll(el) {
+        const checked = el.checked;
+        document.querySelectorAll('.smi-row-checkbox').forEach(box => {
+            box.checked = checked;
+        });
+    }
+
+    /** 批次儲存勾選項目的排程狀態異動 */
+    async function saveBatch() {
+        const checkedBoxes = document.querySelectorAll('.smi-row-checkbox:checked');
+        if (!checkedBoxes.length) {
+            showToast('請先勾選欲修改狀態的排單項目！', 'warning');
+            return;
+        }
+
+        // 整理異動更新清單
+        const updates = [];
+        for (const box of checkedBoxes) {
+            const id = box.dataset.id;
+            const statusSelect = document.querySelector(`.smi-row-status[data-id="${id}"]`);
+            const newStatus = statusSelect ? statusSelect.value : '';
+
+            // 尋找此筆排單的原始資料物件
+            const originalObj = scheduleData.find(d => String(d['ID']) === String(id));
+            if (!originalObj || !newStatus) continue;
+
+            // 依據原始的 _scheduleHeaders 表頭定義還原為資料列陣列，並更新排程狀態欄位
+            const rowValues = _scheduleHeaders.map(h => {
+                if (h === 'ID') return id;
+                const hk = String(h).trim();
+                if (hk.includes('狀態') || hk.includes('排程')) return newStatus;
+                return originalObj[h] !== undefined ? originalObj[h] : '';
+            });
+
+            updates.push({ id: id, rowValues: rowValues });
+        }
+
+        if (!updates.length) return;
+
+        const ok = await showConfirm(`確定要儲存這 ${updates.length} 筆勾選排單的排程狀態異動嗎？`);
+        if (!ok) return;
+
+        showLoading(true);
+        try {
+            // 執行 Google Sheets 批次更新
+            await Sheets.batchUpdateById(CONFIG.SHEETS.SCHEDULE, updates);
+            showToast(`成功更新 ${updates.length} 筆排程狀態！`, 'success');
+            
+            // 重新查詢頁面，以獲得最新數據並重新運算加總
+            await query();
+        } catch (e) {
+            showToast('儲存排程狀態失敗：' + e.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    return { init, query, toggleSelectAll, saveBatch };
 })();
