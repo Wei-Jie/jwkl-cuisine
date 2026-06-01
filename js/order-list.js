@@ -64,7 +64,7 @@ const OrderList = (() => {
                 <button class="btn btn-primary" onclick="OrderList.saveChanges()">💾 儲存異動</button>
             </div>
             <div class="table-wrap">
-                <table class="data-table" id="ol-table">
+                <table class="data-table" id="ol-table" style="min-width: 1100px;">
                     <thead>
                         <tr>
                             <th style="width:40px"></th>
@@ -75,6 +75,7 @@ const OrderList = (() => {
                             <th>訂單金額</th>
                             <th>排程狀態</th>
                             <th>收款日期</th>
+                            <th style="width:180px">備註</th>
                         </tr>
                     </thead>
                     <tbody id="ol-tbody"></tbody>
@@ -215,6 +216,7 @@ const OrderList = (() => {
                 <td>${formatAmount(o['訂單金額'] || '-')}</td>
                 <td>${statusHtml}</td>
                 <td><input type="date" class="form-control form-control-sm pay-date" data-idx="${idx}" value="${payDate}"></td>
+                <td><input type="text" class="form-control form-control-sm ol-note" data-idx="${idx}" value="${escapeHtml(o['備註'] || o['說明'] || '')}" placeholder="備註"></td>
             </tr>`;
         }).join('');
 
@@ -329,9 +331,14 @@ const OrderList = (() => {
                 const payEl = document.querySelector(`.pay-date[data-idx="${idx}"]`);
                 const newPayDate = fromInputDate(payEl?.value || '');
 
+                // 新備註內容
+                const noteEl = document.querySelector(`.ol-note[data-idx="${idx}"]`);
+                const newNote = noteEl?.value || '';
+
                 const orderHeaders = Object.keys(order).filter(k => !k.startsWith('_'));
                 const orderRow = orderHeaders.map(k => {
                     if (k === '收款日期') return newPayDate;
+                    if (k === '備註' || k === '說明') return newNote;
                     return order[k] || '';
                 });
                 updates.push({ sheet: CONFIG.SHEETS.ORDER_MAIN, data: { id: order['ID'], rowValues: orderRow } });
