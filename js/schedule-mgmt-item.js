@@ -6,14 +6,25 @@ const ScheduleMgmtItem = (() => {
     let menuData = [];
     let scheduleData = [];
     let _scheduleHeaders = [];
-    let selectedItem = '';
+    let selectedItems = []; // 改為複選陣列
+
+    /** 全域點擊監聽：點擊外面時自動關閉下拉選單面板 */
+    function handleGlobalClick(e) {
+        const panel = document.getElementById('smi-dropdown-panel');
+        const btn = document.getElementById('smi-dropdown-btn');
+        if (panel && btn && panel.style.display === 'block') {
+            if (!btn.contains(e.target) && !panel.contains(e.target)) {
+                panel.style.display = 'none';
+            }
+        }
+    }
 
     /** 初始化品項排單頁面 */
     async function init() {
         const page = document.getElementById('page-schedule-mgmt-item');
         if (!page) return;
         
-        // 渲染極具質感的 SPA 頁面架構，並搭配小灶私廚風格的藍色與漸變 Metric Cards
+        // 渲染極具質感的 SPA 頁面架構，並搭配小灶私廚風格的藍色與自訂動態指標卡片網格
         page.innerHTML = `
             <div class="page-header">
                 <h1 class="page-title">品項排單管理</h1>
@@ -22,11 +33,20 @@ const ScheduleMgmtItem = (() => {
 
             <div class="card" style="margin-bottom: 20px;">
                 <div class="filter-row">
-                    <div class="form-group" style="min-width: 280px;">
-                        <label class="form-label">選擇產品品項</label>
-                        <select id="smi-item-select" class="form-control">
-                            <option value="">-- 請選擇產品品項 --</option>
-                        </select>
+                    <div class="form-group" style="min-width: 320px; position: relative;">
+                        <label class="form-label">選擇產品品項 (可複選)</label>
+                        <button type="button" class="form-control" id="smi-dropdown-btn" onclick="ScheduleMgmtItem.toggleDropdown(event)" style="text-align: left; display: flex; justify-content: space-between; align-items: center; background: var(--color-surface); cursor: pointer;">
+                            <span id="smi-dropdown-label">-- 請選擇產品品項 (已選 0 項) --</span>
+                            <span style="font-size: 10px; color: var(--color-text-secondary);">▼</span>
+                        </button>
+                        <!-- 下拉多選面板 -->
+                        <div id="smi-dropdown-panel" class="card" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; padding: 12px; margin-top: 4px; box-shadow: var(--shadow); max-height: 250px; overflow-y: auto; width: 100%;">
+                            <div style="display: flex; gap: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--color-border); padding-bottom: 8px;">
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="ScheduleMgmtItem.selectPreset('all')" style="padding: 4px 10px; font-size: 12px;">全選</button>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="ScheduleMgmtItem.selectPreset('none')" style="padding: 4px 10px; font-size: 12px;">清除</button>
+                            </div>
+                            <div id="smi-checkbox-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                        </div>
                     </div>
                     <button class="btn btn-primary" id="smi-query-btn" onclick="ScheduleMgmtItem.query()" style="height: 38px;">🔍 查詢排單</button>
                 </div>
@@ -62,16 +82,9 @@ const ScheduleMgmtItem = (() => {
                 </div>
             </div>
 
-            <!-- 下方指標加總區 (配合訂購數量進行加總運算) -->
-            <div id="smi-summary-area" style="display: none; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 16px;">
-                <div class="card" style="margin-bottom: 0; background: linear-gradient(135deg, var(--color-warning-light) 0%, #ffffff 100%); border-left: 5px solid var(--color-warning); box-shadow: var(--shadow-sm);">
-                    <div style="font-size: 13px; font-weight: 600; color: #7a5c00;">⏳ 「待排程」訂購數量加總</div>
-                    <div id="smi-sum-pending" style="font-size: 28px; font-weight: 700; color: #7a5c00; margin-top: 8px;">0</div>
-                </div>
-                <div class="card" style="margin-bottom: 0; background: linear-gradient(135deg, var(--color-success-light) 0%, #ffffff 100%); border-left: 5px solid var(--color-success); box-shadow: var(--shadow-sm);">
-                    <div style="font-size: 13px; font-weight: 600; color: #137333;">📊 「已完成 ＋ 待排程」訂購數量加總</div>
-                    <div id="smi-sum-total" style="font-size: 28px; font-weight: 700; color: #137333; margin-top: 8px;">0</div>
-                </div>
+            <!-- 下方指標區：各品項獨立統計動態網格 -->
+            <div id="smi-summary-area" style="display: none; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 16px;">
+                <!-- 由 JS 動態生成各品項卡片 -->
             </div>
         `;
 
@@ -81,17 +94,30 @@ const ScheduleMgmtItem = (() => {
             const menu = await App.getMenu();
             menuData = [...new Set(menu.map(m => m['菜名']).filter(Boolean))].sort();
             
-            const select = document.getElementById('smi-item-select');
-            if (select) {
-                select.innerHTML = `<option value="">-- 請選擇產品品項 --</option>` + 
-                    menuData.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+            const listContainer = document.getElementById('smi-checkbox-list');
+            if (listContainer) {
+                listContainer.innerHTML = menuData.map(name => `
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; user-select: none; margin-bottom: 0;">
+                        <input type="checkbox" class="smi-item-checkbox" value="${escapeHtml(name)}" onchange="ScheduleMgmtItem.updateDropdownLabel()" style="cursor: pointer; width: 15px; height: 15px;">
+                        <span>${escapeHtml(name)}</span>
+                    </label>
+                `).join('');
 
-                // 若之前已有選取的品項，則自動帶入
-                if (selectedItem && menuData.includes(selectedItem)) {
-                    select.value = selectedItem;
+                // 若之前已有選取的品項，則自動勾選並查詢
+                if (selectedItems && selectedItems.length > 0) {
+                    document.querySelectorAll('.smi-item-checkbox').forEach(box => {
+                        if (selectedItems.includes(box.value)) {
+                            box.checked = true;
+                        }
+                    });
+                    updateDropdownLabel();
                     query();
                 }
             }
+
+            // 移除舊的點擊監聽避免重複註冊，並重新註冊全域點擊事件
+            document.removeEventListener('click', handleGlobalClick);
+            document.addEventListener('click', handleGlobalClick);
         } catch (e) {
             showToast('載入產品清單失敗：' + e.message, 'error');
         } finally {
@@ -101,14 +127,14 @@ const ScheduleMgmtItem = (() => {
 
     /** 執行排單查詢 */
     async function query() {
-        const select = document.getElementById('smi-item-select');
-        const val = select ? select.value : '';
-        if (!val) {
-            showToast('請選擇產品品項', 'warning');
+        const checkedBoxes = document.querySelectorAll('.smi-item-checkbox:checked');
+        const vals = [...checkedBoxes].map(box => box.value);
+        if (!vals.length) {
+            showToast('請至少選擇一個產品品項', 'warning');
             return;
         }
 
-        selectedItem = val;
+        selectedItems = vals;
         showLoading(true);
 
         try {
@@ -117,11 +143,11 @@ const ScheduleMgmtItem = (() => {
             _scheduleHeaders = rows[0] || [];
             const allItems = rowsToObjects(rows);
 
-            // 過濾條件：品項名稱與下拉完全相同，且狀態為「待排程」或「已完成」
+            // 過濾條件：品項名稱在勾選名單內，且狀態為「待排程」或「已完成」
             scheduleData = allItems.filter(item => {
                 const name = String(item['品項名稱'] || item['品項'] || '').trim();
                 const status = String(getValueByKeyword(item, ['狀態', '排程']) || '').trim();
-                return name === selectedItem && (status === CONFIG.STATUS.PENDING || status === CONFIG.STATUS.DONE);
+                return selectedItems.includes(name) && (status === CONFIG.STATUS.PENDING || status === CONFIG.STATUS.DONE);
             });
 
             // 重設表頭的全選勾選框狀態
@@ -145,16 +171,16 @@ const ScheduleMgmtItem = (() => {
 
         if (!tableCard || !summaryArea || !tbody) return;
 
-        titleEl.textContent = `【${selectedItem}】排單明細`;
+        const displayTitle = selectedItems.length === 1 
+            ? `【${selectedItems[0]}】` 
+            : `【已選 ${selectedItems.length} 個品項】`;
+        titleEl.textContent = `${displayTitle}排單明細`;
         tableCard.style.display = 'block';
 
         if (!scheduleData.length) {
             tbody.innerHTML = `<tr><td colspan="9" class="text-center text-secondary">沒有符合條件的排單紀錄（需為「待排程」或「已完成」狀態）</td></tr>`;
-            
-            // 指標值歸零
-            document.getElementById('smi-sum-pending').textContent = '0';
-            document.getElementById('smi-sum-total').textContent = '0';
-            summaryArea.style.display = 'grid';
+            summaryArea.innerHTML = '';
+            summaryArea.style.display = 'none';
             return;
         }
 
@@ -201,19 +227,54 @@ const ScheduleMgmtItem = (() => {
             `;
         }).join('');
 
-        // 計算訂購數量加總 (採用強健的關鍵字定位取值)
-        // 1. 「待排程」訂購數量加總
-        const pendingSum = scheduleData
-            .filter(d => String(getValueByKeyword(d, ['狀態', '排程'])).trim() === CONFIG.STATUS.PENDING)
-            .reduce((sum, d) => sum + (parseFloat(getValueByKeyword(d, ['數量', 'qty'])) || 0), 0);
+        // 各品項獨立統計計算
+        const itemStats = {};
+        selectedItems.forEach(item => {
+            itemStats[item] = { pending: 0, total: 0, unit: '個' };
+        });
 
-        // 2. 「已完成 ＋ 待排程」訂購數量加總
-        const totalSum = scheduleData
-            .reduce((sum, d) => sum + (parseFloat(getValueByKeyword(d, ['數量', 'qty'])) || 0), 0);
+        scheduleData.forEach(d => {
+            const name = String(d['品項名稱'] || d['品項'] || '').trim();
+            const qty = parseFloat(getValueByKeyword(d, ['數量', 'qty'])) || 0;
+            const status = String(getValueByKeyword(d, ['狀態', '排程'])).trim();
+            
+            if (itemStats[name]) {
+                const menuItem = menuData.find(m => m['菜名'] === name);
+                const isWeight = menuItem && String(menuItem['單價']).includes('*');
+                itemStats[name].unit = isWeight ? 'g' : '個';
+                
+                itemStats[name].total += qty;
+                if (status === CONFIG.STATUS.PENDING) {
+                    itemStats[name].pending += qty;
+                }
+            }
+        });
 
-        // 更新至對應 Metric Cards，精緻化單位呈現
-        document.getElementById('smi-sum-pending').textContent = `${pendingSum.toLocaleString('zh-TW')} 個/公克`;
-        document.getElementById('smi-sum-total').textContent = `${totalSum.toLocaleString('zh-TW')} 個/公克`;
+        // 動態渲染各品項卡片網格
+        summaryArea.innerHTML = Object.keys(itemStats).map(itemName => {
+            const stats = itemStats[itemName];
+            return `
+                <div class="card" style="margin-bottom: 0; border-left: 5px solid var(--color-primary); box-shadow: var(--shadow-sm); background: linear-gradient(to right, #fdfdfd, #ffffff); padding: 16px;">
+                    <div style="font-weight: 700; font-size: 14px; color: var(--color-text); border-bottom: 1px solid var(--color-border); padding-bottom: 8px; margin-bottom: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(itemName)}">
+                        🥘 ${escapeHtml(itemName)}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; gap: 12px;">
+                        <div style="flex: 1;">
+                            <div style="font-size: 11px; font-weight: 600; color: #7a5c00;">⏳ 待排程</div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--color-warning); margin-top: 4px;">
+                                ${stats.pending.toLocaleString('zh-TW')} <span style="font-size: 12px; font-weight: normal; color: var(--color-text-secondary);">${stats.unit}</span>
+                            </div>
+                        </div>
+                        <div style="flex: 1; border-left: 1px dashed var(--color-border); padding-left: 12px;">
+                            <div style="font-size: 11px; font-weight: 600; color: #137333;">📊 總需求 (待+已)</div>
+                            <div style="font-size: 20px; font-weight: 700; color: var(--color-success); margin-top: 4px;">
+                                ${stats.total.toLocaleString('zh-TW')} <span style="font-size: 12px; font-weight: normal; color: var(--color-text-secondary);">${stats.unit}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
         
         summaryArea.style.display = 'grid';
     }
@@ -276,5 +337,36 @@ const ScheduleMgmtItem = (() => {
         }
     }
 
-    return { init, query, toggleSelectAll, saveBatch };
+    /** 切換下拉多選選單面板顯示/隱藏 */
+    function toggleDropdown(e) {
+        if (e) e.stopPropagation();
+        const panel = document.getElementById('smi-dropdown-panel');
+        if (panel) {
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
+    }
+
+    /** 下拉多選快捷按鈕設定 (全選 / 清除) */
+    function selectPreset(type) {
+        const checkboxes = document.querySelectorAll('.smi-item-checkbox');
+        checkboxes.forEach(box => {
+            box.checked = (type === 'all');
+        });
+        updateDropdownLabel();
+    }
+
+    /** 更新下拉按鈕上的選取文字 */
+    function updateDropdownLabel() {
+        const checkedBoxes = document.querySelectorAll('.smi-item-checkbox:checked');
+        const label = document.getElementById('smi-dropdown-label');
+        if (label) {
+            if (checkedBoxes.length === 0) {
+                label.textContent = '-- 請選擇產品品項 (已選 0 項) --';
+            } else {
+                label.textContent = `已選擇 ${checkedBoxes.length} 個品項`;
+            }
+        }
+    }
+
+    return { init, query, toggleSelectAll, saveBatch, toggleDropdown, selectPreset, updateDropdownLabel };
 })();
